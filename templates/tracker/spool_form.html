@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} — FilamentTracker{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+    <div class="mb-6 flex items-center gap-3">
+        <a href="{% url 'spool-list' %}" class="text-sm text-gray-500 hover:text-gray-700">← Inventory</a>
+        <span class="text-gray-300">/</span>
+        <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+                <!-- Brand -->
+                <div>
+                    <label for="{{ form.brand.id_for_label }}" class="block text-sm font-medium text-gray-700">Brand</label>
+                    <div class="mt-1">{{ form.brand }}</div>
+                    {% if form.brand.errors %}<p class="mt-1 text-xs text-red-600">{{ form.brand.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Material -->
+                <div>
+                    <label for="{{ form.material.id_for_label }}" class="block text-sm font-medium text-gray-700">Material</label>
+                    <div class="mt-1">
+                        {{ form.material }}
+                        <datalist id="material-suggestions">
+                            <option value="PLA">
+                            <option value="PETG">
+                            <option value="ABS">
+                            <option value="ASA">
+                            <option value="TPU">
+                            <option value="Nylon">
+                            <option value="PC">
+                            <option value="PLA-CF">
+                            <option value="PETG-CF">
+                        </datalist>
+                    </div>
+                    {% if form.material.errors %}<p class="mt-1 text-xs text-red-600">{{ form.material.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Color name -->
+                <div>
+                    <label for="{{ form.color_name.id_for_label }}" class="block text-sm font-medium text-gray-700">Color Name</label>
+                    <div class="mt-1">{{ form.color_name }}</div>
+                    {% if form.color_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_name.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Color hex -->
+                <div>
+                    <label for="{{ form.color_hex.id_for_label }}" class="block text-sm font-medium text-gray-700">Color</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        {{ form.color_hex }}
+                        <span class="text-sm text-gray-500">Pick the closest match</span>
+                    </div>
+                    {% if form.color_hex.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_hex.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Full weight -->
+                <div>
+                    <label for="{{ form.full_weight_g.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Full Roll Weight <span class="font-normal text-gray-400">(g)</span>
+                    </label>
+                    <div class="mt-1">{{ form.full_weight_g }}</div>
+                    {% if form.full_weight_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.full_weight_g.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Remaining weight -->
+                <div>
+                    <label for="{{ form.remaining_g.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Remaining <span class="font-normal text-gray-400">(g)</span>
+                    </label>
+                    <div class="mt-1">{{ form.remaining_g }}</div>
+                    {% if form.remaining_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.remaining_g.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Price paid -->
+                <div>
+                    <label for="{{ form.price_paid.id_for_label }}" class="block text-sm font-medium text-gray-700">Price Paid</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="text-gray-400 sm:text-sm">$</span>
+                        </div>
+                        <input id="{{ form.price_paid.id_for_label }}"
+                               name="price_paid"
+                               type="number"
+                               step="0.01"
+                               value="{{ form.price_paid.value|default:'' }}"
+                               placeholder="0.00"
+                               class="block w-full rounded-md border-gray-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                    {% if form.price_paid.errors %}<p class="mt-1 text-xs text-red-600">{{ form.price_paid.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Purchase date -->
+                <div>
+                    <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700">Purchase Date</label>
+                    <div class="mt-1">{{ form.purchase_date }}</div>
+                    {% if form.purchase_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_date.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Notes (full width) -->
+                <div class="sm:col-span-2">
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Notes <span class="font-normal text-gray-400">(optional)</span>
+                    </label>
+                    <div class="mt-1">{{ form.notes }}</div>
+                    {% if form.notes.errors %}<p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
+                </div>
+
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+                <a href="{% url 'spool-list' %}"
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Save Spool
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
