@@ -1,0 +1,68 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Assign Spools — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+    <div class="mb-6">
+        <a href="{% url 'log-print' %}" class="text-sm text-gray-500 hover:text-gray-700">← Log a Print</a>
+        <h1 class="mt-2 text-2xl font-bold text-gray-900">Assign Spools</h1>
+        <p class="mt-1 text-sm text-gray-500">
+            <span class="font-medium text-gray-700">{{ print_log.name }}</span> —
+            match each color slot to a spool in your inventory.
+        </p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="divide-y divide-gray-100">
+                {% for slot in slots %}
+                {% with ps=slot.print_spool %}
+                <div class="flex items-center gap-4 p-4">
+
+                    <!-- Slicer color swatch + grams -->
+                    <div class="flex-shrink-0 text-center">
+                        <div class="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-gray-200 mx-auto"
+                             style="background-color: {{ ps.slicer_hex }}"></div>
+                        <p class="mt-1 text-xs text-gray-400">{{ ps.grams_used|floatformat:1 }}g</p>
+                    </div>
+
+                    <!-- Spool selector -->
+                    <div class="flex-1 min-w-0">
+                        <label for="spool_{{ ps.pk }}" class="block text-xs font-medium text-gray-500 mb-1">
+                            {{ ps.slicer_hex }}
+                        </label>
+                        <select id="spool_{{ ps.pk }}"
+                                name="spool_{{ ps.pk }}"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <option value="">— Unassigned —</option>
+                            {% for spool in slot.ranked_spools %}
+                            <option value="{{ spool.pk }}"
+                                    {% if forloop.first %}selected{% endif %}>
+                                {{ spool.brand }} — {{ spool.color_name }} ({{ spool.material }}) · {{ spool.remaining_g|floatformat:0 }}g left
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+
+            <div class="flex items-center justify-end gap-3 px-4 py-4 bg-gray-50 border-t border-gray-100">
+                <a href="{% url 'spool-list' %}"
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Confirm &amp; Deduct Inventory
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

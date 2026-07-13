@@ -10,3 +10,4 @@ staticfiles/
 static/css/main.css
 *.egg-info/
 .DS_Store
+data*.json

@@ -1,0 +1,17 @@
+{% if error %}
+<span class="text-xs text-red-500">{{ error }}</span>
+{% else %}
+<span class="text-xs text-green-600">✓ {{ product_title|truncatechars:60 }}</span>
+<script>
+(function() {
+    var d = document;
+    {% if parsed.brand %}d.getElementById('id_brand').value = '{{ parsed.brand|escapejs }}';{% endif %}
+    {% if parsed.material %}d.getElementById('id_material').value = '{{ parsed.material|escapejs }}';{% endif %}
+    {% if parsed.color_name %}d.getElementById('id_color_name').value = '{{ parsed.color_name|escapejs }}';{% endif %}
+    {% if parsed.full_weight_g %}
+    d.getElementById('id_full_weight_g').value = '{{ parsed.full_weight_g }}';
+    d.getElementById('id_remaining_g').value = '{{ parsed.full_weight_g }}';
+    {% endif %}
+})();
+</script>
+{% endif %}

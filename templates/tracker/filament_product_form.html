@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+    <div class="mb-6 flex items-center gap-3">
+        <a href="{% url 'filament-product-list' %}" class="text-sm text-gray-500 hover:text-gray-700">← Product Library</a>
+        <span class="text-gray-300">/</span>
+        <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+                <div class="sm:col-span-2">
+                    <label for="{{ form.sku.id_for_label }}" class="block text-sm font-medium text-gray-700">SKU</label>
+                    <div class="mt-1 flex items-center gap-2">
+                        {{ form.sku }}
+                        <button type="button" id="gen-sku-btn"
+                                class="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                title="Generate a unique SKU">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+                            </svg>
+                            Generate
+                        </button>
+                    </div>
+                    {% if form.sku.errors %}<p class="mt-1 text-xs text-red-600">{{ form.sku.errors.0 }}</p>{% endif %}
+                    <div class="mt-3 flex items-start gap-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
+                        <div id="qr-container" class="flex-shrink-0 rounded overflow-hidden border border-gray-200"></div>
+                        <div class="text-xs text-gray-500 leading-relaxed">
+                            <p class="font-medium text-gray-700 mb-1">QR code for this SKU</p>
+                            <p>Screenshot or print this as a label to stick on spools of this product for future scanning.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.brand.id_for_label }}" class="block text-sm font-medium text-gray-700">Brand</label>
+                    <div class="mt-1">{{ form.brand }}</div>
+                    {% if form.brand.errors %}<p class="mt-1 text-xs text-red-600">{{ form.brand.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.material.id_for_label }}" class="block text-sm font-medium text-gray-700">Material</label>
+                    <div class="mt-1">
+                        {{ form.material }}
+                        <datalist id="material-suggestions">
+                            <option value="PLA"><option value="PETG"><option value="ABS">
+                            <option value="ASA"><option value="TPU"><option value="Nylon">
+                            <option value="PC"><option value="PLA-CF"><option value="PETG-CF">
+                        </datalist>
+                    </div>
+                    {% if form.material.errors %}<p class="mt-1 text-xs text-red-600">{{ form.material.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.color_name.id_for_label }}" class="block text-sm font-medium text-gray-700">Color Name</label>
+                    <div class="mt-1">{{ form.color_name }}</div>
+                    {% if form.color_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_name.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.color_hex.id_for_label }}" class="block text-sm font-medium text-gray-700">Color</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        {{ form.color_hex }}
+                        <span class="text-sm text-gray-500">Pick the closest match</span>
+                    </div>
+                    {% if form.color_hex.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_hex.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.full_weight_g.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Full Weight <span class="font-normal text-gray-400">(g)</span>
+                    </label>
+                    <div class="mt-1">{{ form.full_weight_g }}</div>
+                    {% if form.full_weight_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.full_weight_g.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.diameter_mm.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Diameter <span class="font-normal text-gray-400">(mm)</span>
+                    </label>
+                    <div class="mt-1">{{ form.diameter_mm }}</div>
+                    {% if form.diameter_mm.errors %}<p class="mt-1 text-xs text-red-600">{{ form.diameter_mm.errors.0 }}</p>{% endif %}
+                </div>
+
+            </div>
+
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+            <script>
+            (function () {
+                var skuInput = document.getElementById('id_sku');
+                var container = document.getElementById('qr-container');
+                var qrObj = null;
+                function updateQR() {
+                    var sku = skuInput.value.trim();
+                    if (!sku) { container.innerHTML = ''; qrObj = null; return; }
+                    if (qrObj) {
+                        qrObj.makeCode(sku);
+                    } else {
+                        qrObj = new QRCode(container, { text: sku, width: 120, height: 120 });
+                    }
+                }
+                skuInput.addEventListener('input', updateQR);
+                document.getElementById('gen-sku-btn').addEventListener('click', function () {
+                    skuInput.value = 'FT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                    updateQR();
+                });
+                updateQR();
+            })();
+            </script>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+                <a href="{% url 'filament-product-list' %}"
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

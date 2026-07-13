@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Account — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Account Settings</h1>
+
+    <!-- Account details -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">Account Details</h2>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+            <div class="space-y-4">
+                <div>
+                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">Username</label>
+                    <div class="mt-1">{{ form.username }}</div>
+                    {% if form.username.errors %}<p class="mt-1 text-xs text-red-600">{{ form.username.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">Email</label>
+                    <div class="mt-1">{{ form.email }}</div>
+                    {% if form.email.errors %}<p class="mt-1 text-xs text-red-600">{{ form.email.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+            <div class="mt-5">
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Password -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Password</h2>
+        <p class="text-sm text-gray-500 mb-4">Change your login password.</p>
+        <a href="{% url 'password-change' %}"
+           class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            Change Password
+        </a>
+    </div>
+</div>
+{% endblock %}

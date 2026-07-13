@@ -1,14 +1,86 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-100">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}FilamentTracker{% endblock %}</title>
+    <title>{% block title %}Filament Tracker{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        .flatpickr-day.selected,
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.selected:focus {
+            background: #4f46e5;
+            border-color: #4f46e5
+        }
+
+        .flatpickr-day.today {
+            border-color: #4f46e5
+        }
+
+        .flatpickr-day.today:hover {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: #fff
+        }
+
+        .flatpickr-day:hover,
+        .flatpickr-day:focus {
+            background: #e0e7ff;
+            border-color: #e0e7ff
+        }
+
+        .flatpickr-months .flatpickr-prev-month:hover svg,
+        .flatpickr-months .flatpickr-next-month:hover svg {
+            fill: #4f46e5
+        }
+
+        .flatpickr-time input:hover,
+        .flatpickr-time input:focus,
+        .flatpickr-time .flatpickr-am-pm:hover,
+        .flatpickr-time .flatpickr-am-pm:focus {
+            background: #e0e7ff
+        }
+    </style>
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function maskDate(el) {
+                el.addEventListener('input', function (e) {
+                    if (e.inputType && e.inputType.startsWith('delete')) return;
+                    var digits = el.value.replace(/\D/g, '').substring(0, 8);
+                    var out = digits.length > 4
+                        ? digits.substring(0, 2) + '/' + digits.substring(2, 4) + '/' + digits.substring(4)
+                        : digits.length > 2
+                            ? digits.substring(0, 2) + '/' + digits.substring(2)
+                            : digits;
+                    if (el.value !== out) el.value = out;
+                });
+            }
+
+            document.querySelectorAll('[data-date-picker]').forEach(function (el) {
+                var fp = flatpickr(el, {
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'm/d/Y',
+                    allowInput: true,
+                });
+                fp.altInput.placeholder = 'mm/dd/yyyy';
+                maskDate(fp.altInput);
+            });
+
+            flatpickr('[data-datetime-picker]', {
+                dateFormat: 'Y-m-d H:i',
+                enableTime: true,
+                time_24hr: true,
+                allowInput: true,
+            });
+        });
+    </script>
 </head>
 
 <body class="h-full" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
@@ -18,8 +90,9 @@
         <nav class="bg-indigo-700 shadow-sm">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex h-16 items-center justify-between">
+                    <!-- Left: brand + desktop links -->
                     <div class="flex items-center gap-8">
-                        <span class="text-white font-bold text-lg tracking-tight">FilamentTracker</span>
+                        <span class="text-white font-bold text-lg tracking-tight">Filament Tracker</span>
                         {% if user.is_authenticated %}
                         <div class="hidden md:flex items-center gap-1">
                             <a href="{% url 'dashboard' %}"
@@ -36,31 +109,85 @@
                                 class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
                                 Log a Print
                             </a>
-                            <a href="#"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                            <a href="{% url 'queue-list' %}"
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                                  {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
                                 Queue
                             </a>
-                            <a href="#"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                            <a href="{% url 'print-history' %}"
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                                  {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
                                 History
                             </a>
                         </div>
                         {% endif %}
                     </div>
-                    {% if user.is_authenticated %}
-                    <div class="flex items-center gap-3">
-                        <span class="text-indigo-200 text-sm hidden sm:block">{{ user.username }}</span>
-                        <form method="post" action="{% url 'logout' %}">
+
+                    <!-- Right: desktop user info + sign out; mobile hamburger -->
+                    <div class="flex items-center justify-center gap-3">
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'account' %}" class="text-indigo-200 text-sm hidden sm:block hover:text-white transition-colors">{{ user.username }}</a>
+                        <form method="post" action="{% url 'logout' %}" class="contents">
                             {% csrf_token %}
                             <button type="submit"
-                                class="text-sm text-indigo-100 hover:text-white border border-indigo-500 hover:border-indigo-300 px-3 py-1.5 rounded-md transition-colors">
+                                class="hidden md:block text-sm text-indigo-100 hover:text-white border border-indigo-500 hover:border-indigo-300 px-3 py-2 rounded-md transition-colors">
                                 Sign out
                             </button>
                         </form>
+                        <!-- Hamburger (mobile only) -->
+                        <button type="button"
+                            onclick="var m=document.getElementById('mobile-nav');m.classList.toggle('hidden');"
+                            class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                            </svg>
+                        </button>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
             </div>
+
+            <!-- Mobile menu (hidden by default) -->
+            {% if user.is_authenticated %}
+            <div id="mobile-nav" class="hidden md:hidden border-t border-indigo-600">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <a href="{% url 'dashboard' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                          {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-800 text-white{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="{% url 'spool-list' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                          {% if request.resolver_match.url_name in 'spool-list,spool-add,spool-edit,spool-delete' %}bg-indigo-800 text-white{% endif %}">
+                        Inventory
+                    </a>
+                    <a href="{% url 'log-print' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                        Log a Print
+                    </a>
+                    <a href="{% url 'queue-list' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                          {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
+                        Queue
+                    </a>
+                    <a href="{% url 'print-history' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
+                          {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
+                        History
+                    </a>
+                </div>
+                <div class="border-t border-indigo-600 px-2 py-3">
+                    <p class="px-3 pb-2 text-sm text-indigo-300">{{ user.username }}</p>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit"
+                            class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                            Sign out
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </nav>
 
         <!-- Flash messages -->

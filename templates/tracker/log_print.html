@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
-{% block title %}Log a Print — FilamentTracker{% endblock %}
+{% block title %}Log a Print — Filament Tracker{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl">
@@ -45,15 +45,21 @@
 
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-3">
-                <a href="{% url 'spool-list' %}"
-                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Cancel
+            <div class="mt-6 flex items-center justify-between gap-3">
+                <a href="{% url 'manual-entry' %}"
+                   class="text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                    No file? Enter manually →
                 </a>
-                <button type="submit"
-                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
-                    Upload & Parse
-                </button>
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'spool-list' %}"
+                       class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                        Upload & Parse
+                    </button>
+                </div>
             </div>
         </form>
     </div>

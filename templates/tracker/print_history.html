@@ -1,0 +1,165 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Print History — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Print History</h1>
+    <a href="{% url 'log-print' %}"
+       class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+        + Log a Print
+    </a>
+</div>
+
+<!-- Filters -->
+<form method="get" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <input type="text" name="date_from" value="{{ f.date_from }}"
+                   placeholder="mm/dd/yyyy" data-date-picker
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input type="text" name="date_to" value="{{ f.date_to }}"
+                   placeholder="mm/dd/yyyy" data-date-picker
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Material</label>
+            <select name="material"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <option value="">All materials</option>
+                {% for m in materials %}
+                <option value="{{ m }}" {% if f.material == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Spool</label>
+            <select name="spool"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <option value="">All spools</option>
+                {% for s in spools %}
+                <option value="{{ s.pk }}" {% if f.spool == s.pk|stringformat:"s" %}selected{% endif %}>
+                    {{ s.brand }} — {{ s.color_name }} ({{ s.material }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="mt-3 flex items-center gap-2">
+        <button type="submit"
+                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+            Filter
+        </button>
+        {% if f %}
+        <a href="{% url 'print-history' %}"
+           class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+            Clear
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<!-- Results -->
+{% if prints %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
+                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Spools Used</th>
+                    <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Grams</th>
+                    <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Est. Cost</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 bg-white">
+                {% for print in prints %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-5 py-3">
+                        <p class="text-sm font-medium text-gray-900">{{ print.name }}</p>
+                        {% if print.source_url %}
+                        <a href="{{ print.source_url }}" target="_blank" rel="noopener"
+                           class="text-xs text-indigo-500 hover:text-indigo-700 truncate block max-w-xs">
+                            {{ print.source_url|truncatechars:50 }}
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-sm text-gray-500 whitespace-nowrap">
+                        {{ print.printed_at|date:"M j, Y" }}
+                    </td>
+                    <td class="px-5 py-3">
+                        <div class="flex flex-wrap gap-1">
+                            {% for ps in print.spools_used.all %}
+                            <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600">
+                                {% if ps.spool %}
+                                <span class="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                                      style="background-color: {{ ps.spool.color_hex }}"></span>
+                                {{ ps.spool.brand }} {{ ps.spool.color_name }}
+                                {% else %}
+                                <span class="text-gray-400 italic">Unassigned</span>
+                                {% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td class="px-5 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                        {{ print.total_grams_used|floatformat:1 }}g
+                    </td>
+                    <td class="px-5 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                        {% if print.cost_estimate %}
+                        ${{ print.cost_estimate|floatformat:2 }}
+                        {% else %}
+                        <span class="text-gray-400">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="mt-4 flex items-center justify-between">
+    <p class="text-sm text-gray-500">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </p>
+    <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% if f %}{{ f.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}"
+           class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            ← Previous
+        </a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?{% if f %}{{ f.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}"
+           class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            Next →
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+    {% if f %}
+    <p class="text-sm text-gray-500">No prints match those filters.</p>
+    <a href="{% url 'print-history' %}" class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-800">Clear filters</a>
+    {% else %}
+    <p class="text-sm text-gray-500">No confirmed prints yet.</p>
+    <a href="{% url 'log-print' %}"
+       class="mt-3 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+        Log your first print
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

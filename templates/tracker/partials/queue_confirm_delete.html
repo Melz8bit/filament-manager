@@ -1,0 +1,22 @@
+<div id="queue-{{ entry.pk }}"
+     class="bg-white rounded-xl shadow-sm border border-red-200 p-4">
+    <div class="flex items-center gap-3">
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-900">Remove from queue?</p>
+            <p class="mt-0.5 text-sm text-gray-500 truncate">{{ entry.name }}</p>
+            <p class="mt-1 text-xs text-gray-400">This cannot be undone.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="{% url 'queue-list' %}"
+               class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+            </a>
+            <button hx-post="{% url 'queue-delete' entry.pk %}"
+                    hx-target="#queue-{{ entry.pk }}"
+                    hx-swap="delete"
+                    class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors">
+                Remove
+            </button>
+        </div>
+    </div>
+</div>

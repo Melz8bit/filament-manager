@@ -1,0 +1,17 @@
+{% if product %}
+<span class="text-xs text-green-600">✓ Found: {{ product.brand }} {{ product.material }} {{ product.color_name }}</span>
+<script>
+(function() {
+    var d = document;
+    d.getElementById('id_brand').value = '{{ product.brand|escapejs }}';
+    d.getElementById('id_material').value = '{{ product.material|escapejs }}';
+    d.getElementById('id_color_name').value = '{{ product.color_name|escapejs }}';
+    d.getElementById('id_color_hex').value = '{{ product.color_hex|escapejs }}';
+    d.getElementById('id_full_weight_g').value = '{{ product.full_weight_g }}';
+    d.getElementById('id_remaining_g').value = '{{ product.full_weight_g }}';
+    d.getElementById('id_diameter_mm').value = '{{ product.diameter_mm }}';
+})();
+</script>
+{% elif not_found %}
+<span class="text-xs text-amber-600">SKU not in library yet — fill in the fields below and it will be saved when you add the spool.</span>
+{% endif %}

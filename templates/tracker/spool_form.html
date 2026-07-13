@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ title }} — FilamentTracker{% endblock %}
+{% block title %}{{ title }} — Filament Tracker{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl">
@@ -13,6 +13,194 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <form method="post" novalidate>
             {% csrf_token %}
+
+            {% if not form.instance.pk %}
+            <!-- SKU lookup — Add form only -->
+            <div class="mb-5 pb-5 border-b border-gray-100">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Spool SKU
+                    <span class="font-normal text-gray-400">(scan or type to auto-fill — saves to library on first use)</span>
+                </label>
+                <div class="flex items-center gap-2">
+                    <!-- SKU text input (also the form field saved to Spool.sku) -->
+                    {{ form.sku }}
+                    <!-- Scan button -->
+                    <button type="button" id="scan-btn"
+                            class="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
+                        </svg>
+                        Scan
+                    </button>
+                    <!-- Generate SKU button -->
+                    <button type="button" id="gen-sku-btn"
+                            class="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            title="Generate a unique SKU for unlabelled spools">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+                        </svg>
+                        Generate
+                    </button>
+                </div>
+                <div id="sku-status" class="mt-1.5 min-h-[1.25rem]"></div>
+
+                <!-- QR code display (shown after Generate) -->
+                <div id="qr-display" style="display:none" class="mt-3 flex items-start gap-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
+                    <div id="qr-container" class="flex-shrink-0 rounded overflow-hidden border border-gray-200"></div>
+                    <div class="text-xs text-gray-500 leading-relaxed">
+                        <p class="font-medium text-gray-700 mb-1">QR code for this spool</p>
+                        <p>Save or screenshot this image and print it as a label to stick on the spool for future scanning.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barcode scanner modal -->
+            <div id="scanner-modal" style="display:none" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-2xl">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                        <h3 class="font-semibold text-gray-900">Scan Spool SKU</h3>
+                        <button type="button" id="close-scanner"
+                                class="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="qr-reader" class="w-full bg-black"></div>
+                    <div class="px-4 py-3 space-y-3">
+                        <p id="scan-hint" class="text-sm text-center text-gray-500">Initializing…</p>
+                        <div id="photo-fallback" style="display:none" class="text-center">
+                            <label class="cursor-pointer inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
+                                </svg>
+                                Take a photo of the barcode
+                                <input type="file" id="barcode-photo" accept="image/*" capture="environment" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+            <script>
+            (function () {
+                var skuInput = document.getElementById('id_sku');
+                var modal = document.getElementById('scanner-modal');
+                var hint = document.getElementById('scan-hint');
+                var fallback = document.getElementById('photo-fallback');
+                var scanner = null;
+
+                // --- SKU lookup via HTMX is handled by the input's hx-* attributes.
+                // When a code is scanned we set the value and fire 'change' to trigger it.
+
+                function fillSku(code) {
+                    skuInput.value = code.replace(/[^A-Za-z0-9]/g, '') || code;
+                    skuInput.dispatchEvent(new Event('change'));
+                }
+
+                // --- Generate SKU + QR code ---
+                var qrObj = null;
+                document.getElementById('gen-sku-btn').addEventListener('click', function () {
+                    var rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    var sku = 'FT-' + rand;
+                    skuInput.value = sku;
+                    var container = document.getElementById('qr-container');
+                    if (qrObj) {
+                        qrObj.makeCode(sku);
+                    } else {
+                        qrObj = new QRCode(container, { text: sku, width: 120, height: 120 });
+                    }
+                    document.getElementById('qr-display').style.display = 'flex';
+                    // Trigger lookup (will come back as not_found, which is expected for new SKUs)
+                    skuInput.dispatchEvent(new Event('change'));
+                });
+
+                // --- Camera scanner ---
+                function showFallback(msg) {
+                    hint.textContent = msg;
+                    fallback.style.display = 'block';
+                }
+
+                function startScanner() {
+                    modal.style.display = 'flex';
+                    fallback.style.display = 'none';
+                    if (!window.isSecureContext) {
+                        showFallback('Live scanning needs HTTPS — take a photo instead:');
+                        return;
+                    }
+                    hint.textContent = 'Point camera at the barcode';
+                    scanner = new Html5Qrcode('qr-reader');
+                    scanner.start(
+                        { facingMode: 'environment' },
+                        { fps: 10, qrbox: { width: 260, height: 120 } },
+                        function (code) { stopScanner(function () { fillSku(code); }); }
+                    ).catch(function () {
+                        scanner = null;
+                        showFallback('Camera unavailable — take a photo instead:');
+                    });
+                }
+
+                function stopScanner(callback) {
+                    if (scanner) {
+                        scanner.stop().catch(function () {}).finally(function () {
+                            scanner = null;
+                            modal.style.display = 'none';
+                            if (callback) callback();
+                        });
+                    } else {
+                        modal.style.display = 'none';
+                        if (callback) callback();
+                    }
+                }
+
+                document.getElementById('scan-btn').addEventListener('click', startScanner);
+                document.getElementById('close-scanner').addEventListener('click', function () { stopScanner(); });
+                modal.addEventListener('click', function (e) { if (e.target === modal) stopScanner(); });
+
+                document.getElementById('barcode-photo').addEventListener('change', function (e) {
+                    var file = e.target.files[0];
+                    if (!file) return;
+                    hint.textContent = 'Reading barcode…';
+                    fallback.style.display = 'none';
+                    e.target.value = '';
+                    if ('BarcodeDetector' in window) {
+                        createImageBitmap(file)
+                            .then(function (bmp) { return new BarcodeDetector().detect(bmp); })
+                            .then(function (codes) {
+                                if (!codes.length) throw new Error('none');
+                                modal.style.display = 'none';
+                                fillSku(codes[0].rawValue);
+                            })
+                            .catch(function () { showFallback('No barcode found — try a well-lit, close-up photo:'); });
+                    } else {
+                        var el = document.createElement('div');
+                        el.style.cssText = 'position:fixed;left:-9999px;top:0;width:300px;height:300px;';
+                        document.body.appendChild(el);
+                        var tmpId = 'qr-scan-' + Date.now();
+                        el.id = tmpId;
+                        var fs = new Html5Qrcode(tmpId, {
+                            formatsToSupport: [
+                                Html5QrcodeSupportedFormats.CODE_128,
+                                Html5QrcodeSupportedFormats.EAN_13,
+                                Html5QrcodeSupportedFormats.EAN_8,
+                                Html5QrcodeSupportedFormats.UPC_A,
+                                Html5QrcodeSupportedFormats.UPC_E,
+                                Html5QrcodeSupportedFormats.CODE_39,
+                            ]
+                        });
+                        fs.scanFile(file, false)
+                            .then(function (code) { modal.style.display = 'none'; fillSku(code); })
+                            .catch(function () { showFallback('Barcode not detected — try a closer, well-lit photo:'); })
+                            .finally(function () { try { document.body.removeChild(el); } catch (e) {} });
+                    }
+                });
+            })();
+            </script>
+            {% endif %}
 
             {% if form.non_field_errors %}
             <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -35,15 +223,9 @@
                     <div class="mt-1">
                         {{ form.material }}
                         <datalist id="material-suggestions">
-                            <option value="PLA">
-                            <option value="PETG">
-                            <option value="ABS">
-                            <option value="ASA">
-                            <option value="TPU">
-                            <option value="Nylon">
-                            <option value="PC">
-                            <option value="PLA-CF">
-                            <option value="PETG-CF">
+                            <option value="PLA"><option value="PETG"><option value="ABS">
+                            <option value="ASA"><option value="TPU"><option value="Nylon">
+                            <option value="PC"><option value="PLA-CF"><option value="PETG-CF">
                         </datalist>
                     </div>
                     {% if form.material.errors %}<p class="mt-1 text-xs text-red-600">{{ form.material.errors.0 }}</p>{% endif %}
@@ -64,6 +246,15 @@
                         <span class="text-sm text-gray-500">Pick the closest match</span>
                     </div>
                     {% if form.color_hex.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_hex.errors.0 }}</p>{% endif %}
+                </div>
+
+                <!-- Diameter -->
+                <div>
+                    <label for="{{ form.diameter_mm.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Diameter <span class="font-normal text-gray-400">(mm)</span>
+                    </label>
+                    <div class="mt-1">{{ form.diameter_mm }}</div>
+                    {% if form.diameter_mm.errors %}<p class="mt-1 text-xs text-red-600">{{ form.diameter_mm.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Full weight -->

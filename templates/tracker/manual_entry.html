@@ -1,0 +1,66 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Manual Entry — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+    <div class="mb-6">
+        <a href="{% url 'log-print' %}" class="text-sm text-gray-500 hover:text-gray-700">← Log a Print</a>
+        <h1 class="mt-2 text-2xl font-bold text-gray-900">Manual Entry</h1>
+        <p class="mt-1 text-sm text-gray-500">No file? Enter filament usage by hand.</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="space-y-5">
+
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Print Name</label>
+                    <div class="mt-1">
+                        <input type="text" id="name" name="name"
+                               placeholder="e.g. Benchy"
+                               required autofocus
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="printed_at" class="block text-sm font-medium text-gray-700">Date &amp; Time</label>
+                    <div class="mt-1">
+                        <input type="text" id="printed_at" name="printed_at"
+                               value="{{ now }}" data-datetime-picker
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Color Slots</label>
+                    <div id="slots" class="space-y-2">
+                        {% include "tracker/partials/slot_row.html" %}
+                    </div>
+                    <button type="button"
+                            hx-get="{% url 'slot-row' %}"
+                            hx-target="#slots"
+                            hx-swap="beforeend"
+                            class="mt-3 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                        + Add Color
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+                <a href="{% url 'log-print' %}"
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Continue to Assign Spools
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
