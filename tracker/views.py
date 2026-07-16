@@ -174,7 +174,9 @@ class SpoolCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy("spool-list")
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(title="Add Spool", **kwargs)
+        ctx = super().get_context_data(title="Add Spool", **kwargs)
+        ctx["products"] = FilamentProduct.objects.all()
+        return ctx
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -331,15 +333,12 @@ class LogPrintView(LoginRequiredMixin, View):
 class SpoolAssignmentView(LoginRequiredMixin, View):
     def get(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
-        all_spools = Spool.objects.all()
+        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
         slots = []
         for ps in print_log.spools_used.all():
-            ranked = (
-                rank_spools_by_color(ps.slicer_hex, all_spools)
-                if ps.slicer_hex
-                else list(all_spools)
-            )
-            slots.append({"print_spool": ps, "ranked_spools": ranked})
+            ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+            best_pk = ranked[0].pk if ranked else None
+            slots.append({"print_spool": ps, "spools": all_spools, "best_pk": best_pk})
         return render(request, "tracker/spool_assignment.html", {
             "print_log": print_log,
             "slots": slots,

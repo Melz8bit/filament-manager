@@ -11,11 +11,12 @@
 
 <!-- Stat strip -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+    <a href="{% url 'spool-list' %}"
+        class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-colors hover:bg-gray-50">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spools</p>
         <p class="mt-2 text-3xl font-bold text-gray-900">{{ total_spools }}</p>
         <p class="mt-1 text-sm text-gray-400">in inventory</p>
-    </div>
+    </a>
 
     <a href="{% url 'spool-list' %}?low_stock=1"
         class="bg-white rounded-xl shadow-sm border p-5 transition-colors hover:bg-amber-50
@@ -27,17 +28,19 @@
         <p class="mt-1 text-sm text-gray-400">below 100 g</p>
     </a>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+    <a href="{% url 'print-history' %}"
+        class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-colors hover:bg-gray-50">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Prints</p>
         <p class="mt-2 text-3xl font-bold text-gray-900">{{ confirmed_prints }}</p>
         <p class="mt-1 text-sm text-gray-400">confirmed</p>
-    </div>
+    </a>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+    <a href="{% url 'print-history' %}"
+        class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-colors hover:bg-gray-50">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Filament Used</p>
         <p class="mt-2 text-3xl font-bold text-gray-900">{{ total_grams|floatformat:0 }}<span class="text-lg font-medium text-gray-400"> g</span></p>
         <p class="mt-1 text-sm text-gray-400">across all prints</p>
-    </div>
+    </a>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

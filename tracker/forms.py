@@ -7,6 +7,16 @@ _select_cls = _input_cls
 
 
 class SpoolForm(forms.ModelForm):
+    full_weight_g = forms.IntegerField(
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': _input_cls, 'placeholder': 'default: 1000'}),
+    )
+
+    def clean_full_weight_g(self):
+        value = self.cleaned_data.get('full_weight_g')
+        return value if value is not None else 1000
+
     class Meta:
         model = Spool
         fields = [
@@ -35,7 +45,6 @@ class SpoolForm(forms.ModelForm):
                 'class': 'h-10 w-16 rounded-md border border-gray-300 cursor-pointer p-0.5',
             }),
             'diameter_mm': forms.NumberInput(attrs={'class': _input_cls, 'step': '0.01', 'placeholder': '1.75'}),
-            'full_weight_g': forms.NumberInput(attrs={'class': _input_cls, 'placeholder': '1000'}),
             'remaining_g': forms.NumberInput(attrs={'class': _input_cls, 'placeholder': '1000', 'step': '0.1'}),
             'price_paid': forms.NumberInput(attrs={'class': _input_cls, 'placeholder': '0.00', 'step': '0.01'}),
             'purchase_date': forms.DateInput(attrs={'class': _input_cls, 'type': 'text', 'data-date-picker': ''}),
