@@ -8,6 +8,7 @@
     <p class="mt-1 text-sm text-gray-500">Welcome back, {{ user.username }}.</p>
 </div>
 
+
 <!-- Stat strip -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
@@ -17,7 +18,7 @@
     </div>
 
     <a href="{% url 'spool-list' %}?low_stock=1"
-       class="bg-white rounded-xl shadow-sm border p-5 transition-colors hover:bg-amber-50
+        class="bg-white rounded-xl shadow-sm border p-5 transition-colors hover:bg-amber-50
               {% if low_stock_spools %}border-amber-300{% else %}border-gray-200{% endif %}">
         <p class="text-xs font-medium {% if low_stock_spools %}text-amber-600{% else %}text-gray-500{% endif %} uppercase tracking-wide">Low Stock</p>
         <p class="mt-2 text-3xl font-bold {% if low_stock_spools %}text-amber-600{% else %}text-gray-900{% endif %}">
@@ -53,7 +54,7 @@
                 {% for spool in low_stock_spools %}
                 <li class="flex items-center gap-3 px-5 py-3">
                     <div class="w-5 h-5 rounded-full flex-shrink-0 ring-1 ring-gray-200"
-                         style="background-color: {{ spool.color_hex }}"></div>
+                        style="background-color: {{ spool.color_hex }}"></div>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-900 truncate">{{ spool.brand }} {{ spool.color_name }}</p>
                         <p class="text-xs text-gray-400">{{ spool.material }}</p>
@@ -79,7 +80,7 @@
                     </p>
                 </div>
                 <a href="{% url 'queue-list' %}"
-                   class="rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
+                    class="rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
                     View Queue
                 </a>
             </div>
@@ -123,7 +124,7 @@
             <div class="px-5 py-10 text-center">
                 <p class="text-sm text-gray-400">No confirmed prints yet.</p>
                 <a href="{% url 'log-print' %}"
-                   class="mt-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                    class="mt-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
                     Log your first print
                 </a>
             </div>
@@ -131,4 +132,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}

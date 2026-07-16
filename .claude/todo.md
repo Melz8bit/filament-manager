@@ -3,9 +3,9 @@
 ## Pending
 
 ### Security / Hardening
-- [ ] Server-side MIME validation on file uploads (`.3mf`, `.gcode`) — currently only `accept=` on the input
-- [ ] Add `MAX_UPLOAD_SIZE` check in the upload view
-- [ ] Review `ALLOWED_HOSTS` and `DEBUG=False` path for production
+- [x] Server-side MIME validation on file uploads (`.3mf`, `.gcode`) — currently only `accept=` on the input
+- [x] Add `MAX_UPLOAD_SIZE` check in the upload view
+- [x] Review `ALLOWED_HOSTS` and `DEBUG=False` path for production
 
 ### Deployment
 - [ ] Deploy to Railway (or Render): Procfile, `collectstatic`, env vars `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`, `DEBUG=False`
@@ -14,6 +14,7 @@
 ### Quality / UX
 - [ ] Add Django system check to CI (or pre-commit hook)
 - [ ] Mobile nav: link to Account page in mobile menu (currently missing)
+- [ ] Forgot password link on login page (requires email backend setup)
 
 ---
 

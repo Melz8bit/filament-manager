@@ -13,6 +13,11 @@ urlpatterns = [
         views.SpoolDeleteView.as_view(),
         name="spool-delete",
     ),
+    path(
+        "inventory/<int:pk>/card/",
+        views.SpoolCardView.as_view(),
+        name="spool-card",
+    ),
     path("inventory/sku-lookup/", views.SkuLookupView.as_view(), name="sku-lookup"),
     path("inventory/products/", views.FilamentProductListView.as_view(), name="filament-product-list"),
     path("inventory/products/<int:pk>/edit/", views.FilamentProductUpdateView.as_view(), name="filament-product-edit"),

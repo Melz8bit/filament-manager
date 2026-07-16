@@ -10,8 +10,8 @@
                 <p class="mt-2 text-xs text-gray-400">This cannot be undone. Print history using this spool will remain.</p>
             </div>
         </div>
-        <div class="mt-4 flex gap-2">
-            <form method="post" action="{% url 'spool-delete' spool.pk %}">
+        <div class="mt-4 flex items-center gap-2">
+            <form method="post" action="{% url 'spool-delete' spool.pk %}" class="contents">
                 {% csrf_token %}
                 <button type="submit"
                         hx-post="{% url 'spool-delete' spool.pk %}"
@@ -21,10 +21,12 @@
                     Confirm Delete
                 </button>
             </form>
-            <a href="{% url 'spool-list' %}"
-               class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button hx-get="{% url 'spool-card' spool.pk %}"
+                    hx-target="#spool-{{ spool.pk }}"
+                    hx-swap="outerHTML"
+                    class="rounded-md bg-white border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
-            </a>
+            </button>
         </div>
     </div>
 </div>

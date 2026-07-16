@@ -22,7 +22,7 @@
                     <div class="mt-1">{{ form.username }}</div>
                     {% if form.username.errors %}<p class="mt-1 text-xs text-red-600">{{ form.username.errors.0 }}</p>{% endif %}
                 </div>
-                <div>
+                <div class="mt-2">
                     <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">Email</label>
                     <div class="mt-1">{{ form.email }}</div>
                     {% if form.email.errors %}<p class="mt-1 text-xs text-red-600">{{ form.email.errors.0 }}</p>{% endif %}
@@ -30,7 +30,7 @@
             </div>
             <div class="mt-5">
                 <button type="submit"
-                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    class="rounded-md bg-indigo-600 px-4 py-2 mt-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
                     Save Changes
                 </button>
             </div>
@@ -42,7 +42,7 @@
         <h2 class="text-base font-semibold text-gray-900 mb-1">Password</h2>
         <p class="text-sm text-gray-500 mb-4">Change your login password.</p>
         <a href="{% url 'password-change' %}"
-           class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             Change Password
         </a>
     </div>

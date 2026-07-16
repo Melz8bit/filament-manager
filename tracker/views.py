@@ -204,6 +204,12 @@ class SpoolUpdateView(LoginRequiredMixin, UpdateView):
         return super().get_context_data(title=f"Edit {self.object}", **kwargs)
 
 
+class SpoolCardView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        spool = get_object_or_404(Spool, pk=pk)
+        return render(request, "tracker/partials/spool_card.html", {"spool": spool})
+
+
 class SpoolDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
         spool = get_object_or_404(Spool, pk=pk)
