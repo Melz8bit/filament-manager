@@ -252,6 +252,34 @@ class FilamentProductDeleteView(LoginRequiredMixin, View):
         return redirect("filament-product-list")
 
 
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+
+_ZIP_MAGIC = b"PK\x03\x04"
+
+
+def _validate_upload(uploaded_file):
+    """Return (source, error_str). source is 'threemf' | 'gcode'; error_str is None on success."""
+    if uploaded_file.size > MAX_UPLOAD_BYTES:
+        return None, "File too large (max 50 MB)."
+
+    name = uploaded_file.name.lower()
+    header = uploaded_file.read(512)
+    uploaded_file.seek(0)
+
+    if name.endswith(".3mf"):
+        if not header.startswith(_ZIP_MAGIC):
+            return None, "Invalid .3mf file (not a valid ZIP archive)."
+        return "threemf", None
+    elif name.endswith(".gcode"):
+        try:
+            header.decode("utf-8")
+        except UnicodeDecodeError:
+            return None, "Invalid .gcode file (not valid UTF-8 text)."
+        return "gcode", None
+    else:
+        return None, "Unsupported file type. Upload a .3mf or .gcode file."
+
+
 class LogPrintView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, "tracker/log_print.html")
@@ -262,18 +290,15 @@ class LogPrintView(LoginRequiredMixin, View):
             messages.error(request, "Please select a file to upload.")
             return render(request, "tracker/log_print.html")
 
-        name = uploaded_file.name.lower()
-        if name.endswith(".3mf"):
-            source = "threemf"
-            slots = parse_3mf(uploaded_file)
-        elif name.endswith(".gcode"):
-            source = "gcode"
-            slots = parse_gcode(uploaded_file)
-        else:
-            messages.error(
-                request, "Unsupported file type. Upload a .3mf or .gcode file."
-            )
+        source, error = _validate_upload(uploaded_file)
+        if error:
+            messages.error(request, error)
             return render(request, "tracker/log_print.html")
+
+        if source == "threemf":
+            slots = parse_3mf(uploaded_file)
+        else:
+            slots = parse_gcode(uploaded_file)
 
         if not slots:
             messages.error(request, "No filament data found in that file.")
@@ -373,16 +398,12 @@ class QueueUploadView(LoginRequiredMixin, View):
             messages.error(request, "Please select a file.")
             return redirect("queue-list")
 
-        name = uploaded_file.name.lower()
-        if name.endswith(".3mf"):
-            source = "threemf"
-            slots = parse_3mf(uploaded_file)
-        elif name.endswith(".gcode"):
-            source = "gcode"
-            slots = parse_gcode(uploaded_file)
-        else:
-            messages.error(request, "Unsupported file type. Upload a .3mf or .gcode file.")
+        source, error = _validate_upload(uploaded_file)
+        if error:
+            messages.error(request, error)
             return redirect("queue-list")
+
+        slots = parse_3mf(uploaded_file) if source == "threemf" else parse_gcode(uploaded_file)
 
         if not slots:
             messages.error(request, "No filament data found in that file.")
