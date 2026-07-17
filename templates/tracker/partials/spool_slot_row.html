@@ -1,0 +1,39 @@
+{% with ps=slot.print_spool %}
+<div id="slot-{{ ps.pk }}" class="flex items-center gap-4 p-4">
+
+    <!-- Slicer color swatch + grams -->
+    <div class="flex-shrink-0 text-center">
+        <div class="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-gray-200 mx-auto"
+            style="background-color: {{ ps.slicer_hex }}"></div>
+        <p class="mt-1 text-xs text-gray-400">{{ ps.grams_used|floatformat:1 }}g</p>
+    </div>
+
+    <!-- Spool selector + Split button -->
+    <div class="flex-1 min-w-0">
+        <label for="spool_{{ ps.pk }}" class="block text-xs font-medium text-gray-500 mb-1">
+            {{ ps.slicer_hex }}
+        </label>
+        <div class="flex items-center gap-2">
+            <select id="spool_{{ ps.pk }}"
+                name="spool_{{ ps.pk }}"
+                class="block flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <option value="">— Unassigned —</option>
+                {% for spool in slot.spools %}
+                <option value="{{ spool.pk }}"
+                    {% if spool.pk == slot.best_pk %}selected{% endif %}>
+                    {{ spool.brand }} — {{ spool.color_name }} ({{ spool.material }}) · {{ spool.remaining_g|floatformat:0 }}g left
+                </option>
+                {% endfor %}
+            </select>
+            <button type="button"
+                hx-get="{% url 'spool-slot-split' ps.pk %}"
+                hx-target="#slot-{{ ps.pk }}"
+                hx-swap="outerHTML"
+                class="flex-shrink-0 rounded-md border border-gray-300 bg-white px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Split
+            </button>
+        </div>
+    </div>
+
+</div>
+{% endwith %}

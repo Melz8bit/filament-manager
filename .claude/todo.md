@@ -48,3 +48,10 @@
 - [x] Add Spool form: color name → hex auto-fill from ~700 XKCD color names
 - [x] Add Spool form: full_weight_g defaults to 1000g if left blank
 - [x] Spool assignment dropdown sorted alphabetically (color pre-selection preserved)
+- [x] Queue mobile layout: stacks vertically on small screens
+- [x] Queue: shows "Assign Spools" button + color swatches when MakerWorld filament data pre-fetched; otherwise shows file upload form
+- [x] Queue: status stays "queued" until spool assignment confirmed
+- [x] Log a Print: URL input field with MakerWorld auto-fetch or redirect to manual entry for other sites
+- [x] URL title extraction: MakerWorld (API), Printables (GraphQL), Thangs (slug decode), Thingiverse (HTML fallback)
+- [x] Spool assignment: split a slot into multiple sub-slots with live remaining counter; spool selected from inventory
+- [x] Spool assignment: confirm redirects to print history (not inventory)

@@ -679,6 +679,94 @@ class SlotRowView(LoginRequiredMixin, View):
         return render(request, "tracker/partials/slot_row.html")
 
 
+class SpoolSlotRowView(LoginRequiredMixin, View):
+    """Returns a single assignment slot row (used to restore after a cancelled split)."""
+    def get(self, request, pk):
+        ps = get_object_or_404(PrintSpool, pk=pk)
+        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+        best_pk = ranked[0].pk if ranked else None
+        return render(request, "tracker/partials/spool_slot_row.html", {
+            "slot": {"print_spool": ps, "spools": all_spools, "best_pk": best_pk},
+        })
+
+
+class SplitSpoolSlotView(LoginRequiredMixin, View):
+    """GET: inline split form. POST: validate, delete original, create sub-slots."""
+    def _build_slot(self, ps, all_spools):
+        # If a spool was pre-assigned during split, keep it selected
+        if ps.spool_id:
+            best_pk = ps.spool_id
+        else:
+            ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+            best_pk = ranked[0].pk if ranked else None
+        return {"print_spool": ps, "spools": all_spools, "best_pk": best_pk}
+
+    def get(self, request, pk):
+        ps = get_object_or_404(PrintSpool, pk=pk)
+        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        return render(request, "tracker/partials/split_slot_form.html", {
+            "ps": ps,
+            "all_spools": all_spools,
+        })
+
+    def post(self, request, pk):
+        ps = get_object_or_404(PrintSpool, pk=pk)
+        original_grams = float(ps.grams_used)
+
+        spool_id_list = request.POST.getlist("split_spool")
+        grams_list = request.POST.getlist("split_grams")
+
+        splits, total = [], 0.0
+        for spool_id, g in zip(spool_id_list, grams_list):
+            try:
+                grams = float(g)
+            except (ValueError, TypeError):
+                continue
+            if grams <= 0:
+                continue
+            spool = None
+            if spool_id:
+                try:
+                    spool = Spool.objects.get(pk=spool_id)
+                except Spool.DoesNotExist:
+                    pass
+            splits.append({
+                "spool": spool,
+                "hex": spool.color_hex if spool else ps.slicer_hex,
+                "grams": grams,
+            })
+            total += grams
+
+        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+
+        if len(splits) < 2:
+            return render(request, "tracker/partials/split_slot_form.html", {
+                "ps": ps, "all_spools": all_spools,
+                "error": "Enter grams for at least 2 sub-slots.",
+            })
+        if abs(total - original_grams) > 0.5:
+            return render(request, "tracker/partials/split_slot_form.html", {
+                "ps": ps, "all_spools": all_spools,
+                "error": f"Sub-slot grams total {total:.1f}g but must equal {original_grams:.1f}g.",
+            })
+
+        print_log = ps.print_log
+        ps.delete()
+
+        new_slots = []
+        for split in splits:
+            new_ps = PrintSpool.objects.create(
+                print_log=print_log,
+                grams_used=split["grams"],
+                slicer_hex=split["hex"],
+                spool=split["spool"],
+            )
+            new_slots.append(self._build_slot(new_ps, all_spools))
+
+        return render(request, "tracker/partials/spool_slot_rows.html", {"slots": new_slots})
+
+
 class ManualEntryView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, "tracker/manual_entry.html", {

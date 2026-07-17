@@ -35,4 +35,6 @@ urlpatterns = [
     path("history/", views.PrintHistoryView.as_view(), name="print-history"),
     path("prints/manual/", views.ManualEntryView.as_view(), name="manual-entry"),
     path("prints/slot-row/", views.SlotRowView.as_view(), name="slot-row"),
+    path("prints/slots/<int:pk>/split/", views.SplitSpoolSlotView.as_view(), name="spool-slot-split"),
+    path("prints/slots/<int:pk>/row/", views.SpoolSlotRowView.as_view(), name="spool-slot-row"),
 ]

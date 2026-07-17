@@ -1,0 +1,123 @@
+<div id="slot-{{ ps.pk }}" class="p-4 bg-amber-50 border-l-4 border-amber-400">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-offset-1 ring-gray-200"
+             style="background-color: {{ ps.slicer_hex }}"></div>
+        <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-900">Split slot — {{ ps.slicer_hex }}</p>
+            <p class="text-xs text-gray-500">Sub-slot grams must total <span class="font-semibold">{{ ps.grams_used|floatformat:1 }}g</span></p>
+        </div>
+        <div class="ml-auto text-right flex-shrink-0">
+            <p class="text-xs text-gray-500">Remaining</p>
+            <p id="remaining-{{ ps.pk }}" class="text-sm font-bold text-red-600">{{ ps.grams_used|floatformat:1 }}g</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <p class="mb-2 text-xs font-medium text-red-600">{{ error }}</p>
+    {% endif %}
+
+    <!-- Row template for JS cloning — rendered once by Django with all spool options -->
+    <template id="split-row-tmpl-{{ ps.pk }}">
+        <div class="split-row flex items-center gap-2">
+            <div class="split-swatch w-5 h-5 rounded-full flex-shrink-0 ring-1 ring-gray-300"
+                 style="background-color: #cccccc"></div>
+            <select name="split_spool"
+                    class="flex-1 min-w-0 rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">— Select spool —</option>
+                {% for spool in all_spools %}
+                <option value="{{ spool.pk }}" data-hex="{{ spool.color_hex }}">
+                    {{ spool.brand }} — {{ spool.color_name }} ({{ spool.material }}) · {{ spool.remaining_g|floatformat:0 }}g left
+                </option>
+                {% endfor %}
+            </select>
+            <input type="number" name="split_grams" placeholder="grams" min="0.1" step="0.1"
+                   class="w-24 rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <button type="button" class="split-remove-btn text-gray-300 hover:text-red-500 text-sm font-bold flex-shrink-0">✕</button>
+        </div>
+    </template>
+
+    <!-- Sub-slot rows injected by JS -->
+    <div id="split-rows-{{ ps.pk }}" class="space-y-2 mb-3"></div>
+
+    <button type="button"
+            onclick="splitAddRow('{{ ps.pk }}', {{ ps.grams_used }})"
+            class="mb-3 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+        + Add sub-slot
+    </button>
+
+    <!-- Action buttons — hx-include gathers split_spool / split_grams from the rows div -->
+    <div class="flex items-center gap-2">
+        <button type="button"
+                hx-post="{% url 'spool-slot-split' ps.pk %}"
+                hx-include="#split-rows-{{ ps.pk }}"
+                hx-target="#slot-{{ ps.pk }}"
+                hx-swap="outerHTML"
+                class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors">
+            Confirm Split
+        </button>
+        <button type="button"
+                hx-get="{% url 'spool-slot-row' ps.pk %}"
+                hx-target="#slot-{{ ps.pk }}"
+                hx-swap="outerHTML"
+                class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            Cancel
+        </button>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    var _pk = '{{ ps.pk }}';
+    var _total = {{ ps.grams_used }};
+
+    function splitSwatchUpdate(sel) {
+        var opt = sel.options[sel.selectedIndex];
+        var hex = (opt && opt.dataset.hex) ? opt.dataset.hex : '#cccccc';
+        sel.closest('.split-row').querySelector('.split-swatch').style.backgroundColor = hex;
+    }
+
+    function splitUpdateRemaining(pkVal, totalVal) {
+        var inputs = document.querySelectorAll('[data-split-grams="' + pkVal + '"]');
+        var sum = 0;
+        inputs.forEach(function (i) { sum += parseFloat(i.value) || 0; });
+        var remaining = Math.round((totalVal - sum) * 10) / 10;
+        var el = document.getElementById('remaining-' + pkVal);
+        el.textContent = remaining.toFixed(1) + 'g';
+        var ok = Math.abs(remaining) < 0.1;
+        el.className = 'text-sm font-bold ' + (ok ? 'text-green-600' : 'text-red-600');
+    }
+
+    function splitRemoveRow(btn, pkVal, totalVal) {
+        btn.closest('.split-row').remove();
+        splitUpdateRemaining(pkVal, totalVal);
+    }
+
+    function splitAddRow(pkVal, totalVal) {
+        var tmpl = document.getElementById('split-row-tmpl-' + pkVal);
+        var fragment = document.importNode(tmpl.content, true);
+        var row = fragment.querySelector('.split-row');
+
+        var sel = row.querySelector('select[name="split_spool"]');
+        sel.addEventListener('change', function () { splitSwatchUpdate(sel); });
+
+        var gInput = row.querySelector('input[name="split_grams"]');
+        gInput.setAttribute('data-split-grams', pkVal);
+        gInput.addEventListener('input', function () { splitUpdateRemaining(pkVal, totalVal); });
+
+        var removeBtn = row.querySelector('.split-remove-btn');
+        removeBtn.addEventListener('click', function () { splitRemoveRow(removeBtn, pkVal, totalVal); });
+
+        document.getElementById('split-rows-' + pkVal).appendChild(row);
+    }
+
+    // Expose for the "+ Add sub-slot" onclick attribute
+    window.splitAddRow = splitAddRow;
+
+    // Start with 2 rows
+    splitAddRow(_pk, _total);
+    splitAddRow(_pk, _total);
+})();
+</script>
