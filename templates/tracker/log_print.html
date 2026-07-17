@@ -6,7 +6,7 @@
 <div class="max-w-3xl">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Log a Print</h1>
-        <p class="mt-1 text-sm text-gray-500">Upload a sliced file to record filament usage.</p>
+        <p class="mt-1 text-sm text-gray-500">Paste a MakerWorld URL or upload a sliced file to record filament usage.</p>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -17,7 +17,7 @@
 
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700">
-                        Print Name <span class="font-normal text-gray-400">(optional — defaults to filename)</span>
+                        Print Name <span class="font-normal text-gray-400">(optional — defaults to filename or URL title)</span>
                     </label>
                     <div class="mt-1">
                         <input type="text" id="name" name="name"
@@ -26,6 +26,26 @@
                     </div>
                 </div>
 
+                <!-- Option 1: MakerWorld URL -->
+                <div>
+                    <label for="source_url" class="block text-sm font-medium text-gray-700">
+                        MakerWorld URL
+                    </label>
+                    <div class="mt-1">
+                        <input type="url" id="source_url" name="source_url"
+                               placeholder="https://makerworld.com/en/models/…"
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                    <p class="mt-1.5 text-xs text-gray-400">Filament colors and weights are fetched automatically.</p>
+                </div>
+
+                <!-- Divider -->
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+                    <div class="relative flex justify-center"><span class="bg-white px-3 text-xs text-gray-400">or</span></div>
+                </div>
+
+                <!-- Option 2: File upload -->
                 <div>
                     <label for="source_file" class="block text-sm font-medium text-gray-700">
                         Slicer File
@@ -57,7 +77,7 @@
                     </a>
                     <button type="submit"
                             class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
-                        Upload & Parse
+                        Continue
                     </button>
                 </div>
             </div>

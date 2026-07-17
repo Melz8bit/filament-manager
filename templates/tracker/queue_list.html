@@ -42,8 +42,23 @@
                 <p class="mt-1.5 text-xs text-gray-400">Added {{ entry.created_at|date:"M j, Y" }}</p>
             </div>
 
-            <!-- Upload form -->
+            <!-- Action: assign spools if data already fetched, otherwise file upload -->
             <div class="sm:flex-shrink-0">
+                {% if entry.spools_used.exists %}
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-1">
+                        {% for ps in entry.spools_used.all %}
+                        <span class="inline-block w-4 h-4 rounded-full ring-1 ring-gray-300 flex-shrink-0"
+                              style="background-color: {{ ps.slicer_hex }}"
+                              title="{{ ps.grams_used|floatformat:0 }}g {{ ps.slicer_hex }}"></span>
+                        {% endfor %}
+                    </div>
+                    <a href="{% url 'spool-assignment' entry.pk %}"
+                       class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors whitespace-nowrap">
+                        Assign Spools
+                    </a>
+                </div>
+                {% else %}
                 <form method="post" action="{% url 'queue-upload' entry.pk %}" enctype="multipart/form-data"
                       class="flex items-center gap-2">
                     {% csrf_token %}
@@ -59,6 +74,7 @@
                         Upload & Parse
                     </button>
                 </form>
+                {% endif %}
             </div>
         </div>
 

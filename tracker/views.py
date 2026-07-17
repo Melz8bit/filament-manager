@@ -8,7 +8,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from urllib.parse import urlencode
 from django.utils import timezone
 from django.utils.html import format_html
 from django.views import View
@@ -48,7 +49,7 @@ class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
 
 def _title_from_url_slug(url):
     """Extract a model name from the URL path for known 3D printing sites."""
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, unquote
     parsed = urlparse(url)
     host = parsed.netloc.lower().replace("www.", "")
     segment = parsed.path.rstrip("/").split("/")[-1]
@@ -62,16 +63,55 @@ def _title_from_url_slug(url):
         return name.replace("-", " ").title()
 
     if host == "thingiverse.com":
-        # paths like /thing:123456  — no name in slug, skip
+        # paths like /thing:123456 — no name in slug
         return ""
+
+    if host == "thangs.com":
+        # paths like /designer/user/3d-model/Title%20Here-1234567
+        decoded = unquote(segment)
+        name = re.sub(r"-\d+$", "", decoded).strip()
+        return name if name and not name.isdigit() else ""
 
     return ""
 
 
+def _fetch_printables_title(model_id):
+    """Fetch a Printables model title via their public GraphQL API."""
+    gql = json.dumps({"query": "{ print(id: " + model_id + ") { name } }"}).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.printables.com/graphql/",
+        data=gql,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Content-Type": "application/json",
+            "Referer": "https://www.printables.com/",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return data.get("data", {}).get("print", {}).get("name", "")
+
+
 def _fetch_page_title(url):
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().replace("www.", "")
+
     # Try slug extraction first (instant, no network needed)
     title = _title_from_url_slug(url)
     if title:
+        # Printables: upgrade slug title to real title via GraphQL (preserves special chars)
+        if host == "printables.com":
+            segment = parsed.path.rstrip("/").split("/")[-1]
+            m = re.match(r"^(\d+)", segment)
+            if m:
+                try:
+                    api_title = _fetch_printables_title(m.group(1))
+                    if api_title:
+                        return api_title
+                except Exception:
+                    pass
         return title
 
     # Fallback: fetch the page and read <title> or og:title
@@ -104,6 +144,91 @@ def _fetch_page_title(url):
     except Exception:
         pass
     return ""
+
+
+def _fetch_makerworld_filaments(url):
+    """
+    Query the MakerWorld API for per-plate filament usage.
+    Returns list[dict] with grams/hex/material (same format as parsers),
+    or [] if the URL is not MakerWorld or on any error.
+    """
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().replace("www.", "")
+    if host != "makerworld.com":
+        return []
+
+    # Extract numeric model ID from path: /en/models/2978237-slug or /2978237
+    segments = [s for s in parsed.path.split("/") if s]
+    if not segments:
+        return []
+    m = re.match(r"^(\d+)", segments[-1])
+    if not m:
+        return []
+    model_id = m.group(1)
+
+    # Extract instance ID from fragment: #profileId-3341125
+    instance_id = None
+    if parsed.fragment:
+        fm = re.search(r"profileId[:\-](\d+)", parsed.fragment)
+        if fm:
+            instance_id = int(fm.group(1))
+
+    try:
+        api_url = "https://makerworld.com/api/v1/design-service/design/" + model_id
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, */*",
+            "Referer": "https://makerworld.com/",
+        }
+        req = urllib.request.Request(api_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    instances = data.get("instances", [])
+    if not instances:
+        return []
+
+    # Pick the instance matching the URL fragment, then defaultInstanceId, then first
+    instance = None
+    if instance_id:
+        instance = next((i for i in instances if i.get("id") == instance_id), None)
+    if instance is None:
+        default_id = data.get("defaultInstanceId")
+        if default_id:
+            instance = next((i for i in instances if i.get("id") == default_id), None)
+    if instance is None:
+        instance = instances[0]
+
+    plates = instance.get("extention", {}).get("modelInfo", {}).get("plates", [])
+
+    # Aggregate grams per (hex, material) across all plates
+    totals = {}
+    for plate in plates:
+        for f in plate.get("filaments", []):
+            hex_val = f.get("color", "")
+            if not hex_val.startswith("#"):
+                hex_val = "#" + hex_val
+            material = f.get("type", "")
+            try:
+                grams = float(f.get("usedG", 0))
+            except (ValueError, TypeError):
+                continue
+            key = (hex_val, material)
+            totals[key] = totals.get(key, 0.0) + grams
+
+    return [
+        {"grams": grams, "hex": hex_val, "material": material}
+        for (hex_val, material), grams in totals.items()
+        if grams > 0
+    ]
+
 
 from .constants import LOW_STOCK_THRESHOLD_G
 from .parsers import parse_3mf, parse_gcode
@@ -297,31 +422,49 @@ class LogPrintView(LoginRequiredMixin, View):
 
     def post(self, request):
         uploaded_file = request.FILES.get("source_file")
-        if not uploaded_file:
-            messages.error(request, "Please select a file to upload.")
-            return render(request, "tracker/log_print.html")
+        source_url = request.POST.get("source_url", "").strip()
+        name = request.POST.get("name", "").strip()
 
-        source, error = _validate_upload(uploaded_file)
-        if error:
-            messages.error(request, error)
-            return render(request, "tracker/log_print.html")
+        if uploaded_file:
+            source, error = _validate_upload(uploaded_file)
+            if error:
+                messages.error(request, error)
+                return render(request, "tracker/log_print.html")
 
-        if source == "threemf":
-            slots = parse_3mf(uploaded_file)
+            slots = parse_3mf(uploaded_file) if source == "threemf" else parse_gcode(uploaded_file)
+            if not slots:
+                messages.error(request, "No filament data found in that file.")
+                return render(request, "tracker/log_print.html")
+
+            print_log = PrintLog.objects.create(
+                name=name or uploaded_file.name,
+                printed_at=timezone.now(),
+                source=source,
+                source_file=uploaded_file,
+                status="pending_assignment",
+            )
+
+        elif source_url:
+            slots = _fetch_makerworld_filaments(source_url)
+            if slots:
+                # MakerWorld with filament data — go straight to spool assignment
+                print_log = PrintLog.objects.create(
+                    name=name or _fetch_page_title(source_url) or source_url,
+                    printed_at=timezone.now(),
+                    source="threemf",
+                    source_url=source_url,
+                    status="pending_assignment",
+                )
+            else:
+                # Other sites — fetch title and hand off to manual entry
+                title = name or _fetch_page_title(source_url)
+                messages.info(request, "Filament data isn't available for this URL — enter it manually below.")
+                qs = urlencode({"name": title, "source_url": source_url})
+                return redirect(reverse("manual-entry") + "?" + qs)
+
         else:
-            slots = parse_gcode(uploaded_file)
-
-        if not slots:
-            messages.error(request, "No filament data found in that file.")
+            messages.error(request, "Please upload a file or enter a URL.")
             return render(request, "tracker/log_print.html")
-
-        print_log = PrintLog.objects.create(
-            name=request.POST.get("name", "").strip() or uploaded_file.name,
-            printed_at=timezone.now(),
-            source=source,
-            source_file=uploaded_file,
-            status="pending_assignment",
-        )
 
         for slot in slots:
             PrintSpool.objects.create(
@@ -385,15 +528,32 @@ class QueueAddView(LoginRequiredMixin, View):
             messages.error(request, "Please paste a URL.")
             return render(request, "tracker/queue_add.html")
 
-        PrintLog.objects.create(
-            name=name or url,
+        # Fetch title from URL if name not provided
+        if not name:
+            name = _fetch_page_title(url) or url
+
+        print_log = PrintLog.objects.create(
+            name=name,
             printed_at=timezone.now(),
             source="threemf",
             source_url=url,
             queue_notes=notes,
             status="queued",
         )
-        messages.success(request, "Added to queue.")
+
+        # Auto-fetch filament data from MakerWorld API if available
+        slots = _fetch_makerworld_filaments(url)
+        for slot in slots:
+            PrintSpool.objects.create(
+                print_log=print_log,
+                grams_used=slot["grams"],
+                slicer_hex=slot["hex"],
+            )
+
+        if slots:
+            messages.success(request, "Added to queue with filament data from MakerWorld.")
+        else:
+            messages.success(request, "Added to queue.")
         return redirect("queue-list")
 
 
@@ -523,10 +683,13 @@ class ManualEntryView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, "tracker/manual_entry.html", {
             "now": timezone.now().strftime("%Y-%m-%d %H:%M"),
+            "prefilled_name": request.GET.get("name", ""),
+            "prefilled_url": request.GET.get("source_url", ""),
         })
 
     def post(self, request):
         name = request.POST.get("name", "").strip()
+        source_url = request.POST.get("source_url", "").strip()
         printed_at_raw = request.POST.get("printed_at", "").strip()
         grams_list = request.POST.getlist("grams_used")
         hex_list = request.POST.getlist("slicer_hex")
@@ -535,6 +698,8 @@ class ManualEntryView(LoginRequiredMixin, View):
             messages.error(request, "Print name is required.")
             return render(request, "tracker/manual_entry.html", {
                 "now": timezone.now().strftime("%Y-%m-%d %H:%M"),
+                "prefilled_name": name,
+                "prefilled_url": source_url,
             })
 
         slots = []
@@ -550,6 +715,8 @@ class ManualEntryView(LoginRequiredMixin, View):
             messages.error(request, "Add at least one color slot with grams > 0.")
             return render(request, "tracker/manual_entry.html", {
                 "now": timezone.now().strftime("%Y-%m-%d %H:%M"),
+                "prefilled_name": name,
+                "prefilled_url": source_url,
             })
 
         try:
@@ -562,6 +729,7 @@ class ManualEntryView(LoginRequiredMixin, View):
             name=name,
             printed_at=printed_at,
             source="manual",
+            source_url=source_url,
             status="pending_assignment",
         )
         for slot in slots:

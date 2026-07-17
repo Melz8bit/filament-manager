@@ -13,16 +13,25 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <form method="post" novalidate>
             {% csrf_token %}
+            {% if prefilled_url %}<input type="hidden" name="source_url" value="{{ prefilled_url }}">{% endif %}
+
             <div class="space-y-5">
 
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700">Print Name</label>
                     <div class="mt-1">
                         <input type="text" id="name" name="name"
+                               value="{{ prefilled_name }}"
                                placeholder="e.g. Benchy"
-                               required autofocus
+                               required {% if not prefilled_name %}autofocus{% endif %}
                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                     </div>
+                    {% if prefilled_url %}
+                    <p class="mt-1 text-xs text-gray-400 truncate">
+                        From: <a href="{{ prefilled_url }}" target="_blank" rel="noopener"
+                                 class="text-indigo-600 hover:text-indigo-800">{{ prefilled_url }}</a>
+                    </p>
+                    {% endif %}
                 </div>
 
                 <div>
