@@ -3,7 +3,7 @@
 {% block title %}{{ title }} — Filament Tracker{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl">
+<div class="max-w-3xl">
     <div class="mb-6 flex items-center gap-3">
         <a href="{% url 'spool-list' %}" class="text-sm text-gray-500 hover:text-gray-700">← Inventory</a>
         <span class="text-gray-300">/</span>
@@ -314,6 +314,11 @@
                     </label>
                     <div class="mt-1">{{ form.remaining_g }}</div>
                     {% if form.remaining_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.remaining_g.errors.0 }}</p>{% endif %}
+                    <p class="mt-1 text-xs text-gray-400">
+                        Need the empty spool weight?
+                        <a href="https://www.printables.com/model/464663-empty-spool-weight-catalog" target="_blank" rel="noopener"
+                           class="text-indigo-600 hover:text-indigo-800">Empty spool weight catalog</a>
+                    </p>
                 </div>
 
                 <!-- Price paid -->
