@@ -5,34 +5,33 @@ import xml.etree.ElementTree as ET
 def parse_gcode(file_obj):
     lines = file_obj.read().decode("utf-8", errors="ignore").splitlines()
 
-    grams_list = []
     hex_list = []
     material_list = []
+    grams_by_slot = {}  # slot index -> cumulative grams across all plates
 
-    for line in lines[:200]:
+    for line in lines:
         line = line.strip()
 
         if line.startswith("; filament used [g]"):
-            grams_list = [x.strip() for x in line.split("=")[1].split(",")]
-        elif line.startswith("; filament_colour"):
+            plate_grams = [x.strip() for x in line.split("=")[1].split(",")]
+            for i, g in enumerate(plate_grams):
+                try:
+                    grams_by_slot[i] = grams_by_slot.get(i, 0.0) + float(g)
+                except ValueError:
+                    pass
+        elif line.startswith("; filament_colour") and not hex_list:
             hex_list = [x.strip() for x in line.split("=")[1].split(",")]
-        elif line.startswith("; filament_type"):
+        elif line.startswith("; filament_type") and not material_list:
             material_list = [x.strip() for x in line.split("=")[1].split(",")]
 
     results = []
-    for grams_str, hex_val, material in zip(grams_list, hex_list, material_list):
-        grams = float(grams_str)
+    for i, (hex_val, material) in enumerate(zip(hex_list, material_list)):
+        grams = grams_by_slot.get(i, 0.0)
         if grams == 0.0:
             continue
         if not hex_val.startswith("#"):
             hex_val = "#" + hex_val
-        results.append(
-            {
-                "grams": grams,
-                "hex": hex_val,
-                "material": material,
-            }
-        )
+        results.append({"grams": grams, "hex": hex_val, "material": material})
 
     return results
 

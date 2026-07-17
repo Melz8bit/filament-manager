@@ -56,7 +56,10 @@ def _title_from_url_slug(url):
     if host in ("makerworld.com", "printables.com"):
         # paths like /en/models/2599617-parametric-organizer or /model/123456-my-model
         name = re.sub(r"^\d+-", "", segment)
-        return name.replace("-", " ").title() if name else ""
+        # If only digits remain (no slug text was stripped), fall through to network fetch
+        if not name or name.isdigit():
+            return ""
+        return name.replace("-", " ").title()
 
     if host == "thingiverse.com":
         # paths like /thing:123456  — no name in slug, skip
@@ -358,7 +361,7 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
             print_log.status = "confirmed"
             print_log.save()
         messages.success(request, f'"{print_log.name}" confirmed. Inventory updated.')
-        return redirect("spool-list")
+        return redirect("print-history")
 
 
 class QueueListView(LoginRequiredMixin, ListView):
@@ -414,9 +417,12 @@ class QueueUploadView(LoginRequiredMixin, View):
             messages.error(request, "No filament data found in that file.")
             return redirect("queue-list")
 
+        # Clear any PrintSpools from a previous upload attempt on this queue item
+        print_log.spools_used.all().delete()
+
         print_log.source = source
         print_log.source_file = uploaded_file
-        print_log.status = "pending_assignment"
+        # Keep status "queued" — item stays in queue until assignment is confirmed
         print_log.save()
 
         for slot in slots:
