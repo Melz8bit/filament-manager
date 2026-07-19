@@ -39,4 +39,46 @@
         </form>
     </div>
 </div>
+
+<script>
+function checkSpoolCapacity(selectEl, gramsNeeded, pk) {
+    var opt = selectEl.options[selectEl.selectedIndex];
+    var remaining = opt ? parseFloat(opt.dataset.remaining || '0') : 0;
+    var contDiv = document.getElementById('cont-' + pk);
+    var warnEl = document.getElementById('cont-warn-' + pk);
+    var contSel = document.getElementById('cont-spool-' + pk);
+    var gramsEl = document.getElementById('cont-grams-' + pk);
+
+    if (opt && opt.value && remaining < gramsNeeded) {
+        var shortfall = (gramsNeeded - remaining).toFixed(1);
+        warnEl.textContent = remaining.toFixed(1) + 'g left on this spool — ' + shortfall + 'g will come from a replacement spool.';
+        contDiv.classList.remove('hidden');
+        if (contSel) contSel.value = '';
+        if (gramsEl) gramsEl.classList.add('hidden');
+    } else {
+        contDiv.classList.add('hidden');
+        if (contSel) contSel.value = '';
+        if (gramsEl) gramsEl.classList.add('hidden');
+    }
+}
+
+function updateContGrams(pk, gramsNeeded) {
+    var primarySel = document.getElementById('spool_' + pk);
+    var contSel = document.getElementById('cont-spool-' + pk);
+    var gramsEl = document.getElementById('cont-grams-' + pk);
+    if (!primarySel || !contSel || !gramsEl) return;
+
+    var primaryOpt = primarySel.options[primarySel.selectedIndex];
+    var primaryRemaining = parseFloat(primaryOpt ? primaryOpt.dataset.remaining || '0' : '0');
+    var contGrams = (gramsNeeded - primaryRemaining).toFixed(1);
+
+    if (contSel.value) {
+        gramsEl.textContent = primaryRemaining.toFixed(1) + 'g from first spool, then ' + contGrams + 'g from replacement.';
+        gramsEl.classList.remove('hidden');
+    } else {
+        gramsEl.classList.add('hidden');
+    }
+}
+</script>
 {% endblock %}
+

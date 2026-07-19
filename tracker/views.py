@@ -2,6 +2,7 @@ import html as html_lib
 import json
 import re
 import urllib.request
+from itertools import groupby
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -18,7 +19,7 @@ from django.views.generic import ListView, CreateView, UpdateView
 
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Exists, OuterRef, Sum
 
 from .forms import SpoolForm, FilamentProductForm, AccountForm
 from .models import Spool, PrintLog, PrintSpool, FilamentProduct
@@ -237,7 +238,18 @@ from .utils import parse_filament_product, is_filament_product, rank_spools_by_c
 
 @login_required
 def dashboard(request):
-    low_stock_spools = Spool.objects.filter(remaining_g__lt=LOW_STOCK_THRESHOLD_G).order_by("remaining_g")
+    _well_stocked_sibling = Spool.objects.filter(
+        brand=OuterRef("brand"),
+        color_name=OuterRef("color_name"),
+        material=OuterRef("material"),
+        remaining_g__gte=LOW_STOCK_THRESHOLD_G,
+    )
+    low_stock_spools = (
+        Spool.objects.annotate(has_well_stocked_sibling=Exists(_well_stocked_sibling))
+        .filter(remaining_g__lt=LOW_STOCK_THRESHOLD_G)
+        .exclude(has_well_stocked_sibling=True)
+        .order_by("remaining_g")
+    )
     total_grams = (
         PrintSpool.objects.filter(print_log__status="confirmed")
         .aggregate(total=Sum("grams_used"))["total"] or 0
@@ -274,7 +286,25 @@ class SpoolListView(LoginRequiredMixin, ListView):
     }
 
     def get_queryset(self):
-        qs = Spool.objects.all()
+        live_sibling = Spool.objects.filter(
+            brand=OuterRef("brand"),
+            color_name=OuterRef("color_name"),
+            material=OuterRef("material"),
+            remaining_g__gt=0,
+        )
+        well_stocked_sibling = Spool.objects.filter(
+            brand=OuterRef("brand"),
+            color_name=OuterRef("color_name"),
+            material=OuterRef("material"),
+            remaining_g__gte=LOW_STOCK_THRESHOLD_G,
+        )
+        qs = (
+            Spool.objects.annotate(
+                has_live_sibling=Exists(live_sibling),
+                has_well_stocked_sibling=Exists(well_stocked_sibling),
+            )
+            .exclude(remaining_g=0, has_live_sibling=True)
+        )
         if brand := self.request.GET.get("brand"):
             qs = qs.filter(brand=brand)
         if material := self.request.GET.get("material"):
@@ -282,9 +312,14 @@ class SpoolListView(LoginRequiredMixin, ListView):
         if color := self.request.GET.get("color"):
             qs = qs.filter(color_name__icontains=color)
         if self.request.GET.get("low_stock"):
-            qs = qs.filter(remaining_g__lt=LOW_STOCK_THRESHOLD_G)
+            qs = qs.filter(remaining_g__lt=LOW_STOCK_THRESHOLD_G).exclude(has_well_stocked_sibling=True)
         order = self._SORT_MAP.get(self.request.GET.get("sort", "brand_asc"), ("brand", "color_name"))
         return qs.order_by(*order)
+
+    def get(self, request, *args, **kwargs):
+        if "view" in request.GET:
+            request.session["spool_view"] = request.GET["view"]
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -292,6 +327,27 @@ class SpoolListView(LoginRequiredMixin, ListView):
         ctx["materials"] = Spool.objects.values_list("material", flat=True).distinct().order_by("material")
         ctx["total_count"] = Spool.objects.count()
         ctx["f"] = self.request.GET
+        view_mode = self.request.session.get("spool_view", "cards")
+        ctx["view_mode"] = view_mode
+        if view_mode == "grouped":
+            spools_sorted = sorted(
+                ctx["spools"],
+                key=lambda s: (s.brand, s.color_name, s.material, -s.remaining_g),
+            )
+            groups = []
+            for key, group_iter in groupby(
+                spools_sorted, key=lambda s: (s.brand, s.color_name, s.material)
+            ):
+                spool_list = list(group_iter)
+                groups.append({
+                    "brand": key[0],
+                    "color_name": key[1],
+                    "material": key[2],
+                    "color_hex": spool_list[0].color_hex,
+                    "spools": spool_list,
+                    "total_remaining": sum(s.remaining_g for s in spool_list),
+                })
+            ctx["groups"] = groups
         return ctx
 
 
@@ -493,11 +549,32 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
     def post(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
         with transaction.atomic():
-            for ps in print_log.spools_used.all():
+            for ps in list(print_log.spools_used.all()):
                 spool_id = request.POST.get(f"spool_{ps.pk}")
-                if spool_id:
-                    spool = get_object_or_404(Spool, pk=spool_id)
-                    spool.remaining_g = max(0, spool.remaining_g - ps.grams_used)
+                cont_spool_id = request.POST.get(f"continuation_spool_{ps.pk}")
+                if not spool_id:
+                    continue
+                spool = get_object_or_404(Spool, pk=spool_id)
+                if cont_spool_id:
+                    # Primary spool runs out; remainder comes from continuation spool
+                    cont_spool = get_object_or_404(Spool, pk=cont_spool_id)
+                    primary_grams = float(spool.remaining_g)
+                    cont_grams = max(0, float(ps.grams_used) - primary_grams)
+                    ps.spool = spool
+                    ps.grams_used = primary_grams
+                    ps.save()
+                    PrintSpool.objects.create(
+                        print_log=print_log,
+                        spool=cont_spool,
+                        grams_used=cont_grams,
+                        slicer_hex=ps.slicer_hex,
+                    )
+                    spool.remaining_g = 0
+                    spool.save()
+                    cont_spool.remaining_g = max(0, cont_spool.remaining_g - cont_grams)
+                    cont_spool.save()
+                else:
+                    spool.remaining_g = max(0, spool.remaining_g - float(ps.grams_used))
                     spool.save()
                     ps.spool = spool
                     ps.save()
