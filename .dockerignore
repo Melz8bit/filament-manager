@@ -1,0 +1,12 @@
+venv/
+node_modules/
+uploads/
+staticfiles/
+static/css/main.css
+.env
+*.env
+.git/
+__pycache__/
+*.pyc
+*.pyo
+.claude/
