@@ -3,7 +3,8 @@
 ## Pending
 
 ### Deployment
-- [ ] Deploy to Railway (or Render): Procfile, `collectstatic`, env vars `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`, `DEBUG=False`
+- [ ] Deploy to Raspberry Pi via Docker (files ready — test build locally, then set up on Pi with `.env.production`)
+- [ ] Test Docker build: `docker build -t filament-tracker .` then `docker compose up -d`
 - [ ] Confirm `whitenoise` serves static files correctly under production settings
 
 ### Quality / UX
@@ -55,3 +56,8 @@
 - [x] URL title extraction: MakerWorld (API), Printables (GraphQL), Thangs (slug decode), Thingiverse (HTML fallback)
 - [x] Spool assignment: split a slot into multiple sub-slots with live remaining counter; spool selected from inventory
 - [x] Spool assignment: confirm redirects to print history (not inventory)
+- [x] Spool assignment: continuation spool selector when primary spool can't cover slot grams
+- [x] Inventory: hide 0g spools when a live sibling of same brand/color/material exists
+- [x] Inventory: low-stock filter and dashboard exclude spools with a well-stocked sibling
+- [x] Inventory: grouped view (Cards / Grouped toggle, persists in session)
+- [x] Docker deployment files: Dockerfile, compose.yml, .dockerignore
