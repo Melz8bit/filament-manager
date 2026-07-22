@@ -12,7 +12,7 @@
 - [x] Set up CI/CD: GitHub Actions self-hosted runner on the Pi (`.github/workflows/deploy.yml`), triggered on push to `main`, auto-runs `git pull && docker compose up --build -d` — confirmed working 2026-07-22
 
 ### Quality / UX
-- [ ] Add Django system check to CI (or pre-commit hook)
+- [x] Add Django system check to CI — `docker compose run --rm web python manage.py check` runs as a gate in `.github/workflows/deploy.yml` before the deploy step; a failing check blocks the production `docker compose up -d`
 - [ ] Forgot password link on login page (requires email backend setup)
 
 ---
