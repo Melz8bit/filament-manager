@@ -3,16 +3,9 @@
 ## Pending
 
 ### Deployment
-- [x] Deploy to Raspberry Pi via Docker (running on OMV Pi at 192.168.1.73:8000)
-- [x] Test Docker build and `docker compose up -d` on the Pi
-- [x] Confirm `whitenoise` serves static files correctly under production settings
-- [x] Public access migrated from ngrok to Cloudflare Tunnel on a purchased domain (`8bitcode.net`) — `filament.8bitcode.net` routes via `cloudflared` (systemd service `homepi` tunnel, config at `/etc/cloudflared/config.yml`) to `localhost:8000`; barcode/camera scanning confirmed working over the tunnel's HTTPS
-- [x] ngrok fully removed (service, package, apt source, config, `.env.production` references)
 - [ ] Add more hostname entries to `/etc/cloudflared/config.yml` ingress rules as future webapps are deployed to this Pi (e.g. `plex.8bitcode.net`, `<app>.8bitcode.net`) — no local reverse proxy (Caddy/NPM) needed since cloudflared already does hostname-based routing
-- [x] Set up CI/CD: GitHub Actions self-hosted runner on the Pi (`.github/workflows/deploy.yml`), triggered on push to `main`, auto-runs `git pull && docker compose up --build -d` — confirmed working 2026-07-22
 
 ### Quality / UX
-- [x] Add Django system check to CI — `docker compose run --rm web python manage.py check` runs as a gate in `.github/workflows/deploy.yml` before the deploy step; a failing check blocks the production `docker compose up -d`
 - [ ] Forgot password link on login page (requires email backend setup)
 
 ---
@@ -42,6 +35,13 @@
 - [x] GitHub repo setup and initial push (github.com/Melz8bit/filament-manager)
 - [x] CLAUDE.md and .claude/settings.json initialized
 
+### Deployment & CI/CD (2026-07-22)
+- [x] Deployed to Raspberry Pi via Docker (OMV Pi, `compose.yml`, `restart: unless-stopped`)
+- [x] Public access migrated from ngrok to Cloudflare Tunnel on purchased domain `8bitcode.net` — `filament.8bitcode.net` → `cloudflared` (systemd service, tunnel `homepi`) → `localhost:8000`; barcode/camera scanning confirmed working over the tunnel's HTTPS
+- [x] ngrok fully removed (service, package, apt source, config, `.env.production` references)
+- [x] CI/CD: GitHub Actions self-hosted runner on the Pi (`.github/workflows/deploy.yml`), auto-deploys on push to `main`
+- [x] CI gate: `docker compose run --rm web python manage.py check` runs before the deploy step — a failing check blocks production
+
 ### UX / Polish
 - [x] Remove UTF-8 BOM from base.html (was displacing head content into body DOM)
 - [x] HTMX history caching disabled (belt-and-suspenders fix for DOM corruption)
@@ -65,3 +65,9 @@
 - [x] Inventory: low-stock filter and dashboard exclude spools with a well-stocked sibling
 - [x] Inventory: grouped view (Cards / Grouped toggle, persists in session)
 - [x] Docker deployment files: Dockerfile, compose.yml, .dockerignore
+
+### Mobile UI fixes (2026-07-22)
+- [x] Inventory: top bar stacks on mobile instead of crowding; view-mode picker hidden below `sm` breakpoint, mobile sessions default to grouped view (detected via User-Agent)
+- [x] Log a Print: "No file? Enter manually" link moved to its own line above Cancel/Continue
+- [x] Print History: mobile-only card layout (name + colors on one line, date/grams/cost below) replaces the table on small screens; long unspaced names wrap inside the card instead of overflowing it
+- [x] Print names capped at 60 chars (`PRINT_NAME_MAX_LENGTH`) everywhere a name gets set — file upload, URL fetch, queue add/edit, manual entry, HTMX title-fetch — with matching `maxlength` on the inputs
