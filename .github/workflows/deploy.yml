@@ -1,0 +1,15 @@
+name: Deploy to Pi
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull and rebuild
+        run: |
+          cd /home/pi/filament-manager
+          git pull
+          docker compose up --build -d
