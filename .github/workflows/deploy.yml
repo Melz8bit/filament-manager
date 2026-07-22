@@ -8,8 +8,22 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Pull and rebuild
+      - name: Pull latest code
         run: |
           cd /home/pi/filament-manager
           git pull
-          docker compose up --build -d
+
+      - name: Build image
+        run: |
+          cd /home/pi/filament-manager
+          docker compose build
+
+      - name: Django system check
+        run: |
+          cd /home/pi/filament-manager
+          docker compose run --rm web python manage.py check
+
+      - name: Deploy
+        run: |
+          cd /home/pi/filament-manager
+          docker compose up -d
