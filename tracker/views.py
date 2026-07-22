@@ -231,9 +231,13 @@ def _fetch_makerworld_filaments(url):
     ]
 
 
-from .constants import LOW_STOCK_THRESHOLD_G
+from .constants import LOW_STOCK_THRESHOLD_G, PRINT_NAME_MAX_LENGTH
 from .parsers import parse_3mf, parse_gcode
 from .utils import parse_filament_product, is_filament_product, rank_spools_by_color
+
+
+def _is_mobile_request(request):
+    return bool(re.search(r"Mobi", request.META.get("HTTP_USER_AGENT", "")))
 
 
 @login_required
@@ -327,7 +331,8 @@ class SpoolListView(LoginRequiredMixin, ListView):
         ctx["materials"] = Spool.objects.values_list("material", flat=True).distinct().order_by("material")
         ctx["total_count"] = Spool.objects.count()
         ctx["f"] = self.request.GET
-        view_mode = self.request.session.get("spool_view", "cards")
+        default_view = "grouped" if _is_mobile_request(self.request) else "cards"
+        view_mode = self.request.session.get("spool_view", default_view)
         ctx["view_mode"] = view_mode
         if view_mode == "grouped":
             spools_sorted = sorted(
@@ -493,7 +498,7 @@ class LogPrintView(LoginRequiredMixin, View):
                 return render(request, "tracker/log_print.html")
 
             print_log = PrintLog.objects.create(
-                name=name or uploaded_file.name,
+                name=(name or uploaded_file.name)[:PRINT_NAME_MAX_LENGTH],
                 printed_at=timezone.now(),
                 source=source,
                 source_file=uploaded_file,
@@ -505,7 +510,7 @@ class LogPrintView(LoginRequiredMixin, View):
             if slots:
                 # MakerWorld with filament data — go straight to spool assignment
                 print_log = PrintLog.objects.create(
-                    name=name or _fetch_page_title(source_url) or source_url,
+                    name=(name or _fetch_page_title(source_url) or source_url)[:PRINT_NAME_MAX_LENGTH],
                     printed_at=timezone.now(),
                     source="threemf",
                     source_url=source_url,
@@ -513,7 +518,7 @@ class LogPrintView(LoginRequiredMixin, View):
                 )
             else:
                 # Other sites — fetch title and hand off to manual entry
-                title = name or _fetch_page_title(source_url)
+                title = (name or _fetch_page_title(source_url) or "")[:PRINT_NAME_MAX_LENGTH]
                 messages.info(request, "Filament data isn't available for this URL — enter it manually below.")
                 qs = urlencode({"name": title, "source_url": source_url})
                 return redirect(reverse("manual-entry") + "?" + qs)
@@ -608,6 +613,7 @@ class QueueAddView(LoginRequiredMixin, View):
         # Fetch title from URL if name not provided
         if not name:
             name = _fetch_page_title(url) or url
+        name = name[:PRINT_NAME_MAX_LENGTH]
 
         print_log = PrintLog.objects.create(
             name=name,
@@ -685,7 +691,7 @@ class QueueEditView(LoginRequiredMixin, View):
         if not url:
             messages.error(request, "Please paste a URL.")
             return render(request, "tracker/queue_edit.html", {"entry": entry})
-        entry.name = name or url
+        entry.name = (name or url)[:PRINT_NAME_MAX_LENGTH]
         entry.source_url = url
         entry.queue_notes = notes
         entry.save()
@@ -709,13 +715,14 @@ class QueueDeleteView(LoginRequiredMixin, View):
 class QueueFetchTitleView(LoginRequiredMixin, View):
     def get(self, request):
         url = request.GET.get("source_url", "").strip()
-        title = _fetch_page_title(url) if url else ""
+        title = (_fetch_page_title(url) if url else "") or ""
+        title = title[:PRINT_NAME_MAX_LENGTH]
         return HttpResponse(format_html(
             '<input type="text" id="name" name="name" value="{}" '
-            'placeholder="e.g. Articulated Dragon" '
+            'placeholder="e.g. Articulated Dragon" maxlength="{}" '
             'class="block w-full rounded-md border-gray-300 shadow-sm '
             'focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">',
-            title,
+            title, PRINT_NAME_MAX_LENGTH,
         ))
 
 
@@ -891,7 +898,7 @@ class ManualEntryView(LoginRequiredMixin, View):
             printed_at = timezone.now()
 
         print_log = PrintLog.objects.create(
-            name=name,
+            name=name[:PRINT_NAME_MAX_LENGTH],
             printed_at=printed_at,
             source="manual",
             source_url=source_url,

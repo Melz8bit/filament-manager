@@ -65,7 +65,8 @@
 
 <!-- Results -->
 {% if prints %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<!-- Desktop table -->
+<div class="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -122,6 +123,43 @@
             </tbody>
         </table>
     </div>
+</div>
+
+<!-- Mobile cards -->
+<div class="sm:hidden space-y-3">
+    {% for print in prints %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div class="flex items-baseline flex-wrap gap-x-2 gap-y-1">
+            <p class="text-base font-semibold text-gray-900 break-words min-w-0">{{ print.name }}</p>
+            <div class="flex flex-wrap gap-1">
+                {% for ps in print.spools_used.all %}
+                <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600">
+                    {% if ps.spool %}
+                    <span class="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                          style="background-color: {{ ps.spool.color_hex }}"></span>
+                    {{ ps.spool.brand }} {{ ps.spool.color_name }}
+                    {% else %}
+                    <span class="text-gray-400 italic">Unassigned</span>
+                    {% endif %}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
+            <span>{{ print.printed_at|date:"M j, Y" }}</span>
+            <span>{{ print.total_grams_used|floatformat:1 }}g</span>
+            {% if print.cost_estimate %}
+            <span>${{ print.cost_estimate|floatformat:2 }}</span>
+            {% endif %}
+        </div>
+        {% if print.source_url %}
+        <a href="{{ print.source_url }}" target="_blank" rel="noopener"
+           class="mt-1 block text-xs text-indigo-500 hover:text-indigo-700 truncate">
+            {{ print.source_url|truncatechars:50 }}
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
 </div>
 
 <!-- Pagination -->
