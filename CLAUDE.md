@@ -67,16 +67,32 @@ SECRET_KEY=
 DEBUG=True
 DATABASE_URL=          # blank = SQLite; set to postgres:// for Supabase
 ALLOWED_HOSTS=localhost,127.0.0.1
+FORCE_HTTPS=          # defaults to `not DEBUG`; set False when serving plain-http LAN traffic with no local TLS terminator
 ```
+
+## Deployment
+
+Production runs on a Raspberry Pi (hostname `raspberrypi`, LAN IP `192.168.1.73` as of 2026-07-22 — DHCP, verify with `hostname -I` if unreachable) that also runs OpenMediaVault (NAS) and Plex — this app doesn't have the Pi to itself. Runs via Docker (`compose.yml`, `restart: unless-stopped`), container listens on port 8000.
+
+Public access is via **Cloudflare Tunnel**, not ngrok (ngrok was used originally, fully decommissioned 2026-07-22): tunnel named `homepi`, config at `/etc/cloudflared/config.yml` on the Pi, running as the `cloudflared` systemd service. `https://filament.8bitcode.net` → `http://localhost:8000`. No local reverse proxy (Caddy/Nginx Proxy Manager) needed — `cloudflared` does hostname-based ingress routing itself, so adding another webapp to this Pi later just means a new `hostname:`/`service:` pair in that same ingress config plus `cloudflared tunnel route dns homepi <new-hostname>`.
+
+**Update workflow (manual — no CI/CD yet, see `.claude/todo.md`):**
+```bash
+git pull
+docker compose up --build -d   # --build required: plain `up -d` or `restart` won't pick up code or .env.production changes
+```
+
+**Production env file:** `.env.production` lives only on the Pi — it's gitignored (`.env*` pattern) and never committed, so recreate it from `.env.example` if it's ever lost. Key difference from local `.env`: `FORCE_HTTPS=False`, since HTTPS is terminated externally by the Cloudflare Tunnel, not by Django itself (this matters because the app is also reachable via plain `http://` on the LAN, which would otherwise get force-redirected into a broken loop).
 
 ## Implementation Status
 
-Building phase by phase — see plan at `C:\Users\nival\.claude\plans\read-the-contents-of-idempotent-galaxy.md`.
+All 7 phases complete; app is deployed and live (see Deployment above). Plan history at `C:\Users\nival\.claude\plans\read-the-contents-of-idempotent-galaxy.md`.
 
 - [x] Phase 1 — Project scaffolding
 - [x] Phase 2 — Spool inventory CRUD
-- [ ] Phase 3 — File parsing + print log flow
-- [ ] Phase 4 — Spool assignment screen
-- [ ] Phase 5 — Print queue
-- [ ] Phase 6 — Dashboard + print history
-- [ ] Phase 7 — Manual entry + deployment prep
+- [x] Phase 3 — File parsing + print log flow
+- [x] Phase 4 — Spool assignment screen
+- [x] Phase 5 — Print queue
+- [x] Phase 6 — Dashboard + print history
+- [x] Phase 7 — Manual entry + deployment prep
+- [x] Deployed to production (Raspberry Pi, Docker, Cloudflare Tunnel)
