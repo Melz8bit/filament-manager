@@ -3,9 +3,13 @@
 ## Pending
 
 ### Deployment
-- [ ] Deploy to Raspberry Pi via Docker (files ready — test build locally, then set up on Pi with `.env.production`)
-- [ ] Test Docker build: `docker build -t filament-tracker .` then `docker compose up -d`
-- [ ] Confirm `whitenoise` serves static files correctly under production settings
+- [x] Deploy to Raspberry Pi via Docker (running on OMV Pi at 192.168.1.73:8000)
+- [x] Test Docker build and `docker compose up -d` on the Pi
+- [x] Confirm `whitenoise` serves static files correctly under production settings
+- [x] Public access migrated from ngrok to Cloudflare Tunnel on a purchased domain (`8bitcode.net`) — `filament.8bitcode.net` routes via `cloudflared` (systemd service `homepi` tunnel, config at `/etc/cloudflared/config.yml`) to `localhost:8000`; barcode/camera scanning confirmed working over the tunnel's HTTPS
+- [x] ngrok fully removed (service, package, apt source, config, `.env.production` references)
+- [ ] Add more hostname entries to `/etc/cloudflared/config.yml` ingress rules as future webapps are deployed to this Pi (e.g. `plex.8bitcode.net`, `<app>.8bitcode.net`) — no local reverse proxy (Caddy/NPM) needed since cloudflared already does hostname-based routing
+- [x] Set up CI/CD: GitHub Actions self-hosted runner on the Pi (`.github/workflows/deploy.yml`), triggered on push to `main`, auto-runs `git pull && docker compose up --build -d` — confirmed working 2026-07-22
 
 ### Quality / UX
 - [ ] Add Django system check to CI (or pre-commit hook)

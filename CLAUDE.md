@@ -76,11 +76,7 @@ Production runs on a Raspberry Pi (hostname `raspberrypi`, LAN IP `192.168.1.73`
 
 Public access is via **Cloudflare Tunnel**, not ngrok (ngrok was used originally, fully decommissioned 2026-07-22): tunnel named `homepi`, config at `/etc/cloudflared/config.yml` on the Pi, running as the `cloudflared` systemd service. `https://filament.8bitcode.net` → `http://localhost:8000`. No local reverse proxy (Caddy/Nginx Proxy Manager) needed — `cloudflared` does hostname-based ingress routing itself, so adding another webapp to this Pi later just means a new `hostname:`/`service:` pair in that same ingress config plus `cloudflared tunnel route dns homepi <new-hostname>`.
 
-**Update workflow (manual — no CI/CD yet, see `.claude/todo.md`):**
-```bash
-git pull
-docker compose up --build -d   # --build required: plain `up -d` or `restart` won't pick up code or .env.production changes
-```
+**Update workflow (automated via CI/CD):** a GitHub Actions self-hosted runner is registered on the Pi (`.github/workflows/deploy.yml`) — every push to `main` automatically runs `git pull && docker compose up --build -d` on the Pi. No manual deploy step needed; just push. The runner runs as a systemd service under user `pi`, so it stays up across reboots and picks up any pushes made while the Pi was offline.
 
 **Production env file:** `.env.production` lives only on the Pi — it's gitignored (`.env*` pattern) and never committed, so recreate it from `.env.example` if it's ever lost. Key difference from local `.env`: `FORCE_HTTPS=False`, since HTTPS is terminated externally by the Cloudflare Tunnel, not by Django itself (this matters because the app is also reachable via plain `http://` on the LAN, which would otherwise get force-redirected into a broken loop).
 
