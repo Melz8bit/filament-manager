@@ -1,16 +1,16 @@
-<div class="slot-row flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+<div class="slot-row flex items-center gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-900">
     <div class="flex-shrink-0">
         <input type="color" name="slicer_hex" value="#ffffff"
-               class="h-10 w-14 cursor-pointer rounded border border-gray-300 p-0.5">
+               class="h-10 w-14 cursor-pointer rounded border border-gray-300 p-0.5 dark:border-gray-600">
     </div>
     <div class="flex-1">
         <input type="number" name="grams_used" placeholder="Grams used"
                min="0.1" step="0.1"
-               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
     </div>
     <button type="button"
             onclick="this.closest('.slot-row').remove()"
-            class="flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors text-lg leading-none px-1"
+            class="flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors text-lg leading-none px-1 dark:text-gray-500 dark:hover:text-red-400"
             title="Remove slot">
         ×
     </button>

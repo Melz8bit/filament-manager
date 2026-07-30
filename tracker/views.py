@@ -2,9 +2,13 @@ import html as html_lib
 import json
 import re
 import urllib.request
+from collections import Counter
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 from itertools import groupby
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.http import HttpResponse
@@ -20,9 +24,10 @@ from django.views.generic import ListView, CreateView, UpdateView
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Sum
+from django.db.models.functions import TruncDate, TruncWeek
 
-from .forms import SpoolForm, FilamentProductForm, AccountForm
-from .models import Spool, PrintLog, PrintSpool, FilamentProduct
+from .forms import SpoolForm, FilamentProductForm, AccountForm, PrintSaleForm
+from .models import Spool, PrintLog, PrintSpool, FilamentProduct, PrintSale
 
 
 class AccountView(LoginRequiredMixin, UpdateView):
@@ -241,6 +246,221 @@ def _is_mobile_request(request):
 
 
 @login_required
+@require_POST
+def toggle_theme(request):
+    current = request.session.get("theme", "light")
+    request.session["theme"] = "light" if current == "dark" else "dark"
+    return redirect(request.META.get("HTTP_REFERER") or "dashboard")
+
+
+@login_required
+def calculator(request):
+    return render(request, "tracker/calculator.html", {
+        "prefill_item": request.GET.get("item", ""),
+        "prefill_grams": request.GET.get("grams", ""),
+        "prefill_price": request.GET.get("price", ""),
+    })
+
+
+class PrintSaleCreateView(LoginRequiredMixin, View):
+    def post(self, request):
+        item = request.POST.get("item_description", "").strip()
+        if not item:
+            messages.error(request, "Item description is required to save.")
+            return redirect("calculator")
+
+        def _decimal(name):
+            try:
+                return Decimal(request.POST.get(name, "0") or "0")
+            except InvalidOperation:
+                return Decimal("0")
+
+        def _float(name):
+            try:
+                return float(request.POST.get(name, "0") or 0)
+            except (ValueError, TypeError):
+                return 0.0
+
+        sale_price = None
+        sale_price_raw = request.POST.get("sale_price", "").strip()
+        if sale_price_raw:
+            try:
+                sale_price = Decimal(sale_price_raw)
+            except InvalidOperation:
+                sale_price = None
+
+        PrintSale.objects.create(
+            item_description=item[:200],
+            printer=request.POST.get("printer", "").strip()[:60],
+            filament_g=_float("filament_g"),
+            print_hours=_float("print_hours"),
+            material_cost=_decimal("material_cost"),
+            labor_cost=_decimal("labor_cost"),
+            other_cost=_decimal("other_cost"),
+            sale_price=sale_price,
+            notes=request.POST.get("notes", "").strip()[:200],
+        )
+        messages.success(request, f'Saved "{item}" to the Sales Log.')
+        return redirect("sales-log")
+
+
+class SalesLogListView(LoginRequiredMixin, ListView):
+    model = PrintSale
+    template_name = "tracker/sales_log.html"
+    context_object_name = "sales"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        sales = list(self.object_list)
+        sold = [s for s in sales if s.sale_price is not None]
+
+        ctx["total_prints"] = len(sales)
+        ctx["total_revenue"] = sum((s.sale_price for s in sold), Decimal("0"))
+        ctx["total_cost"] = sum((s.total_cost for s in sales), Decimal("0"))
+        ctx["total_profit"] = sum((s.profit for s in sold), Decimal("0"))
+        ctx["avg_sale_price"] = ctx["total_revenue"] / len(sold) if sold else None
+        ctx["avg_profit"] = ctx["total_profit"] / len(sold) if sold else None
+
+        margins = [s.margin_pct for s in sold if s.margin_pct is not None]
+        ctx["avg_margin"] = sum(margins) / len(margins) if margins else None
+
+        printers = [s.printer for s in sales if s.printer]
+        ctx["most_used_printer"] = Counter(printers).most_common(1)[0][0] if printers else None
+        return ctx
+
+
+class PrintSaleUpdateView(LoginRequiredMixin, UpdateView):
+    model = PrintSale
+    form_class = PrintSaleForm
+    template_name = "tracker/sale_form.html"
+    success_url = reverse_lazy("sales-log")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Sale updated.")
+        return super().form_valid(form)
+
+
+class PrintSaleDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        get_object_or_404(PrintSale, pk=pk).delete()
+        return redirect("sales-log")
+
+
+_CHART_W, _CHART_H = 600, 160
+_CHART_PAD = 8
+_CHART_ACCENT = "#4f46e5"  # indigo-600, matches the app's accent throughout
+
+
+def _usage_chart(period="week", periods=12):
+    """Grams printed per day or week (confirmed prints), for a line chart."""
+    today = timezone.localdate()
+
+    if period == "week":
+        range_start = today - timedelta(weeks=periods - 1)
+        anchor = range_start - timedelta(days=range_start.weekday())  # Monday of that week
+        step = timedelta(weeks=1)
+        rows = (
+            PrintSpool.objects.filter(
+                print_log__status="confirmed",
+                print_log__printed_at__date__gte=anchor,
+            )
+            .annotate(bucket=TruncWeek("print_log__printed_at"))
+            .values("bucket")
+            .annotate(total=Sum("grams_used"))
+        )
+        totals_by_bucket = {row["bucket"].date(): float(row["total"]) for row in rows}
+    else:
+        anchor = today - timedelta(days=periods - 1)
+        step = timedelta(days=1)
+        rows = (
+            PrintSpool.objects.filter(
+                print_log__status="confirmed",
+                print_log__printed_at__date__gte=anchor,
+            )
+            .annotate(bucket=TruncDate("print_log__printed_at"))
+            .values("bucket")
+            .annotate(total=Sum("grams_used"))
+        )
+        totals_by_bucket = {row["bucket"]: float(row["total"]) for row in rows}
+
+    series = []
+    for i in range(periods):
+        bucket_date = anchor + step * i
+        series.append({"date": bucket_date, "value": totals_by_bucket.get(bucket_date, 0.0)})
+
+    max_val = max((w["value"] for w in series), default=0) or 1
+    usable_w = _CHART_W - 2 * _CHART_PAD
+    usable_h = _CHART_H - 2 * _CHART_PAD
+    n = len(series)
+
+    points = []
+    for i, w in enumerate(series):
+        x = _CHART_PAD + (usable_w * i / (n - 1) if n > 1 else 0)
+        y = _CHART_PAD + usable_h - (w["value"] / max_val * usable_h)
+        if period == "week":
+            week_start = w["date"]
+            week_end = week_start + timedelta(days=6)
+            if week_start.month == week_end.month:
+                label = f"Week of {week_start.strftime('%b')} {week_start.day}–{week_end.day}"
+            else:
+                label = f"Week of {week_start.strftime('%b')} {week_start.day} – {week_end.strftime('%b')} {week_end.day}"
+        else:
+            label = w["date"].strftime("%b") + " " + str(w["date"].day)
+        points.append({
+            "x": round(x, 1),
+            "y": round(y, 1),
+            "label": label,
+            "value": round(w["value"]),
+        })
+
+    baseline_y = _CHART_PAD + usable_h
+    polyline = " ".join(f"{p['x']},{p['y']}" for p in points)
+    area = (
+        f"M{points[0]['x']},{baseline_y} "
+        + " ".join(f"L{p['x']},{p['y']}" for p in points)
+        + f" L{points[-1]['x']},{baseline_y} Z"
+    )
+
+    grid_mid_y = round(_CHART_PAD + usable_h / 2, 1)
+
+    return {
+        "width": _CHART_W,
+        "height": _CHART_H,
+        "left_x": _CHART_PAD,
+        "right_x": _CHART_W - _CHART_PAD,
+        "points": points,
+        "end_point": points[-1],
+        "polyline": polyline,
+        "area_path": area,
+        "grid_0_y": round(baseline_y, 1),
+        "grid_mid_y": grid_mid_y,
+        "grid_max_y": _CHART_PAD,
+        "label_0_y": round(baseline_y + 3, 1),
+        "label_mid_y": round(grid_mid_y + 3, 1),
+        "label_max_y": _CHART_PAD + 9,
+        "mid_label": round(max_val / 2),
+        "max_label": round(max_val),
+        "accent": _CHART_ACCENT,
+    }
+
+
+def _ranked_bars(rows, label_fn, value_key="total", color_fn=None):
+    """Turn annotated queryset rows into ranked-bar rows with a color and a %-of-max width."""
+    rows = list(rows)
+    max_val = max((row[value_key] or 0 for row in rows), default=0) or 1
+    bars = []
+    for row in rows:
+        value = float(row[value_key] or 0)
+        bars.append({
+            "label": label_fn(row),
+            "value": value,
+            "pct": round(value / max_val * 100, 1),
+            "color": color_fn(row) if color_fn else _CHART_ACCENT,
+        })
+    return bars
+
+
+@login_required
 def dashboard(request):
     _well_stocked_sibling = Spool.objects.filter(
         brand=OuterRef("brand"),
@@ -263,6 +483,19 @@ def dashboard(request):
         .prefetch_related("spools_used__spool")
         .order_by("-printed_at")[:5]
     )
+
+    color_rows = (
+        PrintSpool.objects.filter(print_log__status="confirmed", spool__isnull=False)
+        .values("spool__material", "spool__color_name", "spool__color_hex")
+        .annotate(total=Sum("grams_used"))
+        .order_by("-total")[:8]
+    )
+    color_breakdown = _ranked_bars(
+        color_rows,
+        label_fn=lambda r: f"{r['spool__material']} — {r['spool__color_name']}",
+        color_fn=lambda r: r["spool__color_hex"],
+    )
+
     return render(request, "tracker/dashboard.html", {
         "total_spools": Spool.objects.count(),
         "low_stock_spools": low_stock_spools,
@@ -270,6 +503,9 @@ def dashboard(request):
         "total_grams": total_grams,
         "queued_count": PrintLog.objects.filter(status="queued").count(),
         "recent_prints": recent_prints,
+        "usage_chart_weekly": _usage_chart(period="week", periods=12),
+        "usage_chart_daily": _usage_chart(period="day", periods=30),
+        "color_breakdown": color_breakdown,
     })
 
 
@@ -540,7 +776,7 @@ class LogPrintView(LoginRequiredMixin, View):
 class SpoolAssignmentView(LoginRequiredMixin, View):
     def get(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
-        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
         slots = []
         for ps in print_log.spools_used.all():
             ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
@@ -767,7 +1003,7 @@ class SpoolSlotRowView(LoginRequiredMixin, View):
     """Returns a single assignment slot row (used to restore after a cancelled split)."""
     def get(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)
-        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
         ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
         best_pk = ranked[0].pk if ranked else None
         return render(request, "tracker/partials/spool_slot_row.html", {
@@ -788,7 +1024,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
 
     def get(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)
-        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
         return render(request, "tracker/partials/split_slot_form.html", {
             "ps": ps,
             "all_spools": all_spools,
@@ -822,7 +1058,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
             })
             total += grams
 
-        all_spools = list(Spool.objects.order_by("brand", "color_name", "material"))
+        all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
 
         if len(splits) < 2:
             return render(request, "tracker/partials/split_slot_form.html", {

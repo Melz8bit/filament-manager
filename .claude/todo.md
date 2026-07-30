@@ -7,6 +7,11 @@
 
 ### Quality / UX
 - [ ] Forgot password link on login page (requires email backend setup)
+- [x] Log a Print: filament selection dropdown should not show 0g spools — `remaining_g__gt=0` filter applied to all 4 spool-selection query sites in `views.py` (main assignment, slot restore, split GET/POST)
+
+### Features
+- [ ] Process to handle failed prints
+- [x] Print cost calculator, logged to the project — `/calculator/` (Material/Electricity/Depreciation/Labor breakdown, live totals, Bambu A1 Mini/P1S presets) + `/sales-log/` (saved entries with summary stats, mirrors the user's spreadsheet: total prints, revenue, profit, avg margin, most-used printer); `PrintSale` model, edit/delete per entry
 
 ---
 
@@ -71,3 +76,24 @@
 - [x] Log a Print: "No file? Enter manually" link moved to its own line above Cancel/Continue
 - [x] Print History: mobile-only card layout (name + colors on one line, date/grams/cost below) replaces the table on small screens; long unspaced names wrap inside the card instead of overflowing it
 - [x] Print names capped at 60 chars (`PRINT_NAME_MAX_LENGTH`) everywhere a name gets set — file upload, URL fetch, queue add/edit, manual entry, HTMX title-fetch — with matching `maxlength` on the inputs
+
+### Cost Calculator & Sales Log (2026-07-30)
+- [x] Spool assignment dropdowns: same-color spools ordered least-remaining-first (least-depleted spool becomes the default pick, via `remaining_g` tiebreaker + stable color-distance sort)
+- [x] Calculator defaults (spool cost, filament used, print duration, printer cost, lifespan) zeroed out instead of sample values
+- [x] Calculator "Save to Sales Log" Printer field always syncs to the selected printer preset
+- [x] Print History: "Calculate cost" link per row opens the calculator pre-filled with item name, total grams, and the priciest assigned spool's $/kg (conservative estimate for multi-color prints)
+
+### Dashboard Graphs (2026-07-30)
+- [x] Filament Usage line charts — last 12 weeks and last 30 days, hover tooltip + crosshair, shared `usage_chart.html` partial + `_usage_chart(period, periods)` view helper
+- [x] Top Materials & Colors ranked bar chart (real filament colors as bar fill, with a visibility ring so white/light colors don't disappear against the track)
+- [x] Fixed week-chart tooltip label ("Week of Jul 13–19" instead of a bare start date that read as a single day with no prints)
+- [x] Fixed end-of-line value label colliding with a steep incoming line (white halo via SVG `paint-order="stroke"`)
+
+### Bug Fixes (2026-07-30)
+- [x] Timezone: `TIME_ZONE` was `UTC`, causing late-night local prints to display as the next day; changed to `America/New_York` (inferred from the FPL electricity-rate default in the calculator — confirm if wrong)
+
+### Dark Mode (2026-07-30)
+- [x] Site-wide dark mode: sun/moon toggle in nav, persisted via Django session (same mechanism as the existing Inventory Cards/Grouped toggle — resets on logout, not tied to the user account)
+- [x] Tailwind `darkMode: 'class'` + `dark:` variants applied across all 28 templates, shared form-input classes (`forms.py`), and the flatpickr date-picker popup (re-skinned manually — ships light-only by default)
+- [x] Spool color swatches deliberately unaffected (raw inline `background-color` styles, untouched by theme classes) — verified visually
+- [x] Fixed ~46 hand-coded `<input>`/`<select>` elements across 13 templates that had no explicit background color set (would have stayed white boxes in dark mode)

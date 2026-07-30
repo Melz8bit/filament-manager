@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Sale — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+    <div class="mb-6 flex items-center gap-3">
+        <a href="{% url 'sales-log' %}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">← Sales Log</a>
+        <span class="text-gray-300 dark:text-gray-600">/</span>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Sale</h1>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400 dark:border-red-900">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="space-y-5">
+                <div>
+                    <label for="{{ form.item_description.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Item / Description</label>
+                    <div class="mt-1">{{ form.item_description }}</div>
+                    {% if form.item_description.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.item_description.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.date.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
+                    <div class="mt-1">{{ form.date }}</div>
+                </div>
+
+                <div>
+                    <label for="{{ form.printer.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Printer</label>
+                    <div class="mt-1">{{ form.printer }}</div>
+                </div>
+
+                <div>
+                    <label for="{{ form.sale_price.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Sale Price <span class="font-normal text-gray-400 dark:text-gray-500">(blank = not sold yet)</span>
+                    </label>
+                    <div class="mt-1">{{ form.sale_price }}</div>
+                    {% if form.sale_price.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.sale_price.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                    <div class="mt-1">{{ form.notes }}</div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+                <a href="{% url 'sales-log' %}"
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                    Save
+                </button>
+            </div>
+        </form>
+
+        <form method="post" action="{% url 'sale-delete' object.pk %}"
+              onsubmit="return confirm('Delete this sale entry?')"
+              class="mt-4 pt-4 border-t border-gray-100 flex justify-end dark:border-gray-700">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-400">Delete this entry</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

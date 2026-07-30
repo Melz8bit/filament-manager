@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 from .constants import LOW_STOCK_THRESHOLD_G
 
@@ -53,6 +54,12 @@ class Spool(models.Model):
     def is_low_stock(self):
         return self.remaining_g < LOW_STOCK_THRESHOLD_G
 
+    @property
+    def price_per_kg(self):
+        if self.full_weight_g == 0:
+            return Decimal("0")
+        return self.price_paid / self.full_weight_g * 1000
+
 
 class PrintLog(models.Model):
     name = models.CharField(max_length=200)
@@ -94,6 +101,49 @@ class PrintLog(models.Model):
             if ps.spool and ps.spool.full_weight_g > 0:
                 total += ps.spool.price_paid / ps.spool.full_weight_g * Decimal(str(ps.grams_used))
         return total
+
+    @property
+    def priciest_spool_rate(self):
+        """$/kg of the most expensive assigned spool used in this print, for a conservative single-material cost estimate."""
+        rates = [ps.spool.price_per_kg for ps in self.spools_used.all() if ps.spool]
+        return max(rates) if rates else Decimal("0")
+
+
+class PrintSale(models.Model):
+    """A saved cost-calculator breakdown, optionally marked sold with a sale price."""
+    date = models.DateField(default=timezone.localdate)
+    item_description = models.CharField(max_length=200)
+    printer = models.CharField(max_length=60, blank=True)
+    filament_g = models.FloatField(default=0)
+    print_hours = models.FloatField(default=0)
+    material_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    labor_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    other_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    sale_price = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    notes = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+
+    def __str__(self):
+        return self.item_description
+
+    @property
+    def total_cost(self):
+        return self.material_cost + self.labor_cost + self.other_cost
+
+    @property
+    def profit(self):
+        if self.sale_price is None:
+            return None
+        return self.sale_price - self.total_cost
+
+    @property
+    def margin_pct(self):
+        if not self.sale_price:
+            return None
+        return (self.profit / self.sale_price) * 100
 
 
 class PrintSpool(models.Model):

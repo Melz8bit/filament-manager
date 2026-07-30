@@ -1,5 +1,5 @@
 {% if product %}
-<span class="text-xs text-green-600">✓ Found: {{ product.brand }} {{ product.material }} {{ product.color_name }}</span>
+<span class="text-xs text-green-600 dark:text-green-400">✓ Found: {{ product.brand }} {{ product.material }} {{ product.color_name }}</span>
 <script>
 (function() {
     var d = document;
@@ -13,5 +13,5 @@
 })();
 </script>
 {% elif not_found %}
-<span class="text-xs text-amber-600">SKU not in library yet — fill in the fields below and it will be saved when you add the spool.</span>
+<span class="text-xs text-amber-600 dark:text-amber-400">SKU not in library yet — fill in the fields below and it will be saved when you add the spool.</span>
 {% endif %}

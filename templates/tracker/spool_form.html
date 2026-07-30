@@ -5,25 +5,25 @@
 {% block content %}
 <div class="max-w-3xl">
     <div class="mb-6 flex items-center gap-3">
-        <a href="{% url 'spool-list' %}" class="text-sm text-gray-500 hover:text-gray-700">← Inventory</a>
-        <span class="text-gray-300">/</span>
-        <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+        <a href="{% url 'spool-list' %}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">← Inventory</a>
+        <span class="text-gray-300 dark:text-gray-600">/</span>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ title }}</h1>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
         <form method="post" novalidate>
             {% csrf_token %}
 
             {% if not form.instance.pk %}
             {% if products %}
             <!-- Product library picker -->
-            <div class="mb-5 pb-5 border-b border-gray-100">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+            <div class="mb-5 pb-5 border-b border-gray-100 dark:border-gray-700">
+                <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                     Product Library
-                    <span class="font-normal text-gray-400">(select to auto-fill the form)</span>
+                    <span class="font-normal text-gray-400 dark:text-gray-500">(select to auto-fill the form)</span>
                 </label>
                 <select id="product-library-select"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                     <option value="">— Choose a product —</option>
                     {% for product in products %}
                     <option value="{{ product.pk }}"
@@ -57,10 +57,10 @@
             </div>
             {% endif %}
             <!-- SKU lookup — Add form only -->
-            <div class="mb-5 pb-5 border-b border-gray-100">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+            <div class="mb-5 pb-5 border-b border-gray-100 dark:border-gray-700">
+                <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                     Spool SKU
-                    <span class="font-normal text-gray-400">(scan or type to auto-fill — saves to library on first use)</span>
+                    <span class="font-normal text-gray-400 dark:text-gray-500">(scan or type to auto-fill — saves to library on first use)</span>
                 </label>
                 <div class="flex items-center gap-2">
                     <!-- SKU text input (also the form field saved to Spool.sku) -->
@@ -76,7 +76,7 @@
                     </button>
                     <!-- Generate SKU button -->
                     <button type="button" id="gen-sku-btn"
-                            class="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            class="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
                             title="Generate a unique SKU for unlabelled spools">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
@@ -87,10 +87,10 @@
                 <div id="sku-status" class="mt-1.5 min-h-[1.25rem]"></div>
 
                 <!-- QR code display (shown after Generate) -->
-                <div id="qr-display" style="display:none" class="mt-3 flex items-start gap-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
-                    <div id="qr-container" class="flex-shrink-0 rounded overflow-hidden border border-gray-200"></div>
-                    <div class="text-xs text-gray-500 leading-relaxed">
-                        <p class="font-medium text-gray-700 mb-1">QR code for this spool</p>
+                <div id="qr-display" style="display:none" class="mt-3 flex items-start gap-4 rounded-lg bg-gray-50 border border-gray-200 p-3 dark:bg-gray-900 dark:border-gray-700">
+                    <div id="qr-container" class="flex-shrink-0 rounded overflow-hidden border border-gray-200 dark:border-gray-700"></div>
+                    <div class="text-xs text-gray-500 leading-relaxed dark:text-gray-400">
+                        <p class="font-medium text-gray-700 mb-1 dark:text-gray-300">QR code for this spool</p>
                         <p>Save or screenshot this image and print it as a label to stick on the spool for future scanning.</p>
                     </div>
                 </div>
@@ -98,11 +98,11 @@
 
             <!-- Barcode scanner modal -->
             <div id="scanner-modal" style="display:none" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-2xl">
-                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                        <h3 class="font-semibold text-gray-900">Scan Spool SKU</h3>
+                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-2xl dark:bg-gray-800">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="font-semibold text-gray-900 dark:text-gray-100">Scan Spool SKU</h3>
                         <button type="button" id="close-scanner"
-                                class="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                class="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300">
                             <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
                             </svg>
@@ -110,7 +110,7 @@
                     </div>
                     <div id="qr-reader" class="w-full bg-black"></div>
                     <div class="px-4 py-3 space-y-3">
-                        <p id="scan-hint" class="text-sm text-center text-gray-500">Initializing…</p>
+                        <p id="scan-hint" class="text-sm text-center text-gray-500 dark:text-gray-400">Initializing…</p>
                         <div id="photo-fallback" style="display:none" class="text-center">
                             <label class="cursor-pointer inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -244,7 +244,7 @@
             {% endif %}
 
             {% if form.non_field_errors %}
-            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400 dark:border-red-900">
                 {{ form.non_field_errors }}
             </div>
             {% endif %}
@@ -253,14 +253,14 @@
 
                 <!-- Brand -->
                 <div>
-                    <label for="{{ form.brand.id_for_label }}" class="block text-sm font-medium text-gray-700">Brand</label>
+                    <label for="{{ form.brand.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Brand</label>
                     <div class="mt-1">{{ form.brand }}</div>
-                    {% if form.brand.errors %}<p class="mt-1 text-xs text-red-600">{{ form.brand.errors.0 }}</p>{% endif %}
+                    {% if form.brand.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.brand.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Material -->
                 <div>
-                    <label for="{{ form.material.id_for_label }}" class="block text-sm font-medium text-gray-700">Material</label>
+                    <label for="{{ form.material.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Material</label>
                     <div class="mt-1">
                         {{ form.material }}
                         <datalist id="material-suggestions">
@@ -269,64 +269,64 @@
                             <option value="PC"><option value="PLA-CF"><option value="PETG-CF">
                         </datalist>
                     </div>
-                    {% if form.material.errors %}<p class="mt-1 text-xs text-red-600">{{ form.material.errors.0 }}</p>{% endif %}
+                    {% if form.material.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.material.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Color name -->
                 <div>
-                    <label for="{{ form.color_name.id_for_label }}" class="block text-sm font-medium text-gray-700">Color Name</label>
+                    <label for="{{ form.color_name.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Color Name</label>
                     <div class="mt-1">{{ form.color_name }}</div>
-                    {% if form.color_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_name.errors.0 }}</p>{% endif %}
+                    {% if form.color_name.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.color_name.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Color hex -->
                 <div>
-                    <label for="{{ form.color_hex.id_for_label }}" class="block text-sm font-medium text-gray-700">Color</label>
+                    <label for="{{ form.color_hex.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Color</label>
                     <div class="mt-1 flex items-center gap-3">
                         {{ form.color_hex }}
-                        <span class="text-sm text-gray-500">Pick the closest match</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Pick the closest match</span>
                     </div>
-                    {% if form.color_hex.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color_hex.errors.0 }}</p>{% endif %}
+                    {% if form.color_hex.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.color_hex.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Diameter -->
                 <div>
-                    <label for="{{ form.diameter_mm.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Diameter <span class="font-normal text-gray-400">(mm)</span>
+                    <label for="{{ form.diameter_mm.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Diameter <span class="font-normal text-gray-400 dark:text-gray-500">(mm)</span>
                     </label>
                     <div class="mt-1">{{ form.diameter_mm }}</div>
-                    {% if form.diameter_mm.errors %}<p class="mt-1 text-xs text-red-600">{{ form.diameter_mm.errors.0 }}</p>{% endif %}
+                    {% if form.diameter_mm.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.diameter_mm.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Full weight -->
                 <div>
-                    <label for="{{ form.full_weight_g.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Full Roll Weight <span class="font-normal text-gray-400">(g)</span>
+                    <label for="{{ form.full_weight_g.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Full Roll Weight <span class="font-normal text-gray-400 dark:text-gray-500">(g)</span>
                     </label>
                     <div class="mt-1">{{ form.full_weight_g }}</div>
-                    {% if form.full_weight_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.full_weight_g.errors.0 }}</p>{% endif %}
+                    {% if form.full_weight_g.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.full_weight_g.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Remaining weight -->
                 <div>
-                    <label for="{{ form.remaining_g.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Remaining <span class="font-normal text-gray-400">(g)</span>
+                    <label for="{{ form.remaining_g.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Remaining <span class="font-normal text-gray-400 dark:text-gray-500">(g)</span>
                     </label>
                     <div class="mt-1">{{ form.remaining_g }}</div>
-                    {% if form.remaining_g.errors %}<p class="mt-1 text-xs text-red-600">{{ form.remaining_g.errors.0 }}</p>{% endif %}
-                    <p class="mt-1 text-xs text-gray-400">
+                    {% if form.remaining_g.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.remaining_g.errors.0 }}</p>{% endif %}
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
                         Need the empty spool weight?
                         <a href="https://www.printables.com/model/464663-empty-spool-weight-catalog" target="_blank" rel="noopener"
-                           class="text-indigo-600 hover:text-indigo-800">Empty spool weight catalog</a>
+                           class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">Empty spool weight catalog</a>
                     </p>
                 </div>
 
                 <!-- Price paid -->
                 <div>
-                    <label for="{{ form.price_paid.id_for_label }}" class="block text-sm font-medium text-gray-700">Price Paid</label>
+                    <label for="{{ form.price_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Price Paid</label>
                     <div class="mt-1 relative rounded-md shadow-sm">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span class="text-gray-400 sm:text-sm">$</span>
+                            <span class="text-gray-400 sm:text-sm dark:text-gray-500">$</span>
                         </div>
                         <input id="{{ form.price_paid.id_for_label }}"
                                name="price_paid"
@@ -334,32 +334,32 @@
                                step="0.01"
                                value="{{ form.price_paid.value|default:'' }}"
                                placeholder="0.00"
-                               class="block w-full rounded-md border-gray-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                               class="block w-full rounded-md border-gray-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                     </div>
-                    {% if form.price_paid.errors %}<p class="mt-1 text-xs text-red-600">{{ form.price_paid.errors.0 }}</p>{% endif %}
+                    {% if form.price_paid.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.price_paid.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Purchase date -->
                 <div>
-                    <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700">Purchase Date</label>
+                    <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Purchase Date</label>
                     <div class="mt-1">{{ form.purchase_date }}</div>
-                    {% if form.purchase_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_date.errors.0 }}</p>{% endif %}
+                    {% if form.purchase_date.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.purchase_date.errors.0 }}</p>{% endif %}
                 </div>
 
                 <!-- Notes (full width) -->
                 <div class="sm:col-span-2">
-                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Notes <span class="font-normal text-gray-400">(optional)</span>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Notes <span class="font-normal text-gray-400 dark:text-gray-500">(optional)</span>
                     </label>
                     <div class="mt-1">{{ form.notes }}</div>
-                    {% if form.notes.errors %}<p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
+                    {% if form.notes.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>{% endif %}
                 </div>
 
             </div>
 
             <div class="mt-6 flex items-center justify-end gap-3">
                 <a href="{% url 'spool-list' %}"
-                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                   class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
                     Cancel
                 </a>
                 <button type="submit"

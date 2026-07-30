@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}Cost Calculator — Filament Tracker{% endblock %}
+
+{% block content %}
+<style>
+    /* Native number-input spin buttons sit flush against the padding box in
+       Chromium, so padding-right can't create a gap from the digits — the
+       spin button pseudo-elements need their own margin instead. */
+    .calc-num::-webkit-inner-spin-button,
+    .calc-num::-webkit-outer-spin-button {
+        margin-left: 8px;
+    }
+</style>
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Cost Calculator</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Bambu A1 Mini &amp; P1S defaults. All fields editable.</p>
+        </div>
+        <a href="{% url 'sales-log' %}" class="text-sm text-indigo-600 hover:text-indigo-800 whitespace-nowrap dark:text-indigo-400 dark:hover:text-indigo-300">Sales Log →</a>
+    </div>
+
+    <div class="space-y-4">
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 dark:text-gray-500">Material</p>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <label for="spool-cost" class="text-sm text-gray-600 dark:text-gray-400">Spool cost</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="spool-cost" value="{{ prefill_price|default:'0' }}" min="0" step="0.01"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">$ / kg</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="grams-used" class="text-sm text-gray-600 dark:text-gray-400">Filament used</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="grams-used" value="{{ prefill_grams|default:'0' }}" min="0" step="1"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">g</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="waste-pct" class="text-sm text-gray-600 dark:text-gray-400">Waste buffer</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="waste-pct" value="15" min="0" max="100" step="1"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 dark:text-gray-500">Electricity</p>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <label for="elec-rate" class="text-sm text-gray-600 dark:text-gray-400">
+                        Rate
+                        <span class="block text-xs text-gray-400 dark:text-gray-500">FPL default: $0.132/kWh</span>
+                    </label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="elec-rate" value="0.132" min="0" step="0.001"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">$ / kWh</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="printer-watts" class="text-sm text-gray-600 dark:text-gray-400">Printer wattage</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="printer-watts" value="150" min="0" step="10"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">W</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="print-hours" class="text-sm text-gray-600 dark:text-gray-400">Print duration</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="print-hours" value="0" min="0" step="0.5"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">hrs</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 dark:text-gray-500">Printer Depreciation</p>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <label for="printer-preset" class="text-sm text-gray-600 dark:text-gray-400">Printer preset</label>
+                    <select id="printer-preset"
+                        class="w-44 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <option value="">— Custom —</option>
+                        <option value="a1mini">Bambu A1 Mini</option>
+                        <option value="p1s">Bambu P1S</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="printer-cost" class="text-sm text-gray-600 dark:text-gray-400">Printer cost</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="printer-cost" value="0" min="0" step="10"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">$</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="lifespan-hours" class="text-sm text-gray-600 dark:text-gray-400">Lifespan</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="lifespan-hours" value="0" min="0" step="100"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">hrs</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 dark:text-gray-500">Labor</p>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <label for="labor-rate" class="text-sm text-gray-600 dark:text-gray-400">Hourly rate</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="labor-rate" value="12" min="0" step="0.50"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">$ / hr</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="labor-minutes" class="text-sm text-gray-600 dark:text-gray-400">Active labor time</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" id="labor-minutes" value="30" min="0" step="5"
+                            class="w-24 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        <span class="text-xs text-gray-400 w-14 dark:text-gray-500">min</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+            <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 dark:divide-gray-700">
+                <div class="p-4">
+                    <div class="text-xs text-gray-400 dark:text-gray-500">Material</div>
+                    <div id="r-material" class="font-mono text-base font-medium text-gray-900 dark:text-gray-100">—</div>
+                </div>
+                <div class="p-4">
+                    <div class="text-xs text-gray-400 dark:text-gray-500">Electricity</div>
+                    <div id="r-elec" class="font-mono text-base font-medium text-gray-900 dark:text-gray-100">—</div>
+                </div>
+                <div class="p-4 border-t sm:border-t-0 border-gray-100 dark:border-gray-700">
+                    <div class="text-xs text-gray-400 dark:text-gray-500">Depreciation</div>
+                    <div id="r-deprec" class="font-mono text-base font-medium text-gray-900 dark:text-gray-100">—</div>
+                </div>
+                <div class="p-4 border-t sm:border-t-0 border-gray-100 dark:border-gray-700">
+                    <div class="text-xs text-gray-400 dark:text-gray-500">Labor</div>
+                    <div id="r-labor" class="font-mono text-base font-medium text-gray-900 dark:text-gray-100">—</div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between px-6 py-6 bg-indigo-50 border-t border-gray-100 dark:bg-indigo-950 dark:border-gray-700">
+                <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300">Total cost</span>
+                <span id="r-total" class="font-mono text-xl font-semibold text-indigo-700 dark:text-indigo-300">—</span>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-wrap items-center justify-between gap-4 dark:bg-gray-800 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                <strong class="block text-gray-900 font-medium mb-0.5 dark:text-gray-100">Sell price</strong>
+                Total cost &times; markup
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                    <input type="number" id="markup-x" value="2" min="1" step="0.5"
+                        class="w-16 calc-num text-right rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                    <span>&times;</span>
+                </div>
+                <span id="r-sell" class="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">—</span>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 dark:text-gray-500">Save to Sales Log</p>
+            <form method="post" action="{% url 'sale-add' %}">
+                {% csrf_token %}
+                <input type="hidden" name="filament_g" id="save-filament-g">
+                <input type="hidden" name="print_hours" id="save-print-hours">
+                <input type="hidden" name="material_cost" id="save-material-cost">
+                <input type="hidden" name="labor_cost" id="save-labor-cost">
+                <input type="hidden" name="other_cost" id="save-other-cost">
+
+                <div class="space-y-3">
+                    <div>
+                        <label for="item-description" class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Item / Description</label>
+                        <input type="text" id="item-description" name="item_description" required maxlength="200"
+                            value="{{ prefill_item|default:'' }}"
+                            placeholder="e.g. Pokeball - Groudon"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="save-printer" class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Printer</label>
+                            <input type="text" id="save-printer" name="printer" maxlength="60"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        </div>
+                        <div>
+                            <label for="save-sale-price" class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Sale Price <span class="font-normal text-gray-400 dark:text-gray-500">(if sold)</span></label>
+                            <input type="number" id="save-sale-price" name="sale_price" min="0" step="0.01"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="save-notes" class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Notes</label>
+                        <input type="text" id="save-notes" name="notes" maxlength="200" placeholder="Optional"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+                        Save to Sales Log
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+    <p class="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">FPL rate 13.2&cent;/kWh &middot; Bambu A1 Mini &amp; P1S lifespan estimates</p>
+</div>
+
+<script>
+    (function () {
+        const presets = {
+            a1mini: { cost: 450, lifespan: 4000 },
+            p1s: { cost: 1000, lifespan: 6000 },
+        };
+
+        const presetLabels = {
+            a1mini: 'Bambu A1 Mini',
+            p1s: 'Bambu P1S',
+        };
+
+        document.getElementById('printer-preset').addEventListener('change', function () {
+            const p = presets[this.value];
+            if (p) {
+                document.getElementById('printer-cost').value = p.cost;
+                document.getElementById('lifespan-hours').value = p.lifespan;
+                calc();
+            }
+            if (presetLabels[this.value]) {
+                document.getElementById('save-printer').value = presetLabels[this.value];
+            }
+        });
+
+        ['printer-cost', 'lifespan-hours'].forEach(function (id) {
+            document.getElementById(id).addEventListener('input', function () {
+                document.getElementById('printer-preset').value = '';
+            });
+        });
+
+        const ids = ['spool-cost', 'grams-used', 'waste-pct', 'elec-rate', 'printer-watts', 'print-hours',
+            'printer-cost', 'lifespan-hours', 'labor-rate', 'labor-minutes', 'markup-x'];
+
+        function fmt(n) { return '$' + n.toFixed(2); }
+
+        function calc() {
+            const v = {};
+            ids.forEach(function (id) { v[id] = parseFloat(document.getElementById(id).value) || 0; });
+
+            const material = (v['spool-cost'] / 1000) * v['grams-used'] * (1 + v['waste-pct'] / 100);
+            const elec = (v['printer-watts'] / 1000) * v['print-hours'] * v['elec-rate'];
+            const deprec = v['lifespan-hours'] > 0 ? (v['printer-cost'] / v['lifespan-hours']) * v['print-hours'] : 0;
+            const labor = (v['labor-minutes'] / 60) * v['labor-rate'];
+            const total = material + elec + deprec + labor;
+            const sell = total * v['markup-x'];
+
+            document.getElementById('r-material').textContent = fmt(material);
+            document.getElementById('r-elec').textContent = fmt(elec);
+            document.getElementById('r-deprec').textContent = fmt(deprec);
+            document.getElementById('r-labor').textContent = fmt(labor);
+            document.getElementById('r-total').textContent = fmt(total);
+            document.getElementById('r-sell').textContent = fmt(sell);
+
+            document.getElementById('save-filament-g').value = v['grams-used'];
+            document.getElementById('save-print-hours').value = v['print-hours'];
+            document.getElementById('save-material-cost').value = material.toFixed(2);
+            document.getElementById('save-labor-cost').value = labor.toFixed(2);
+            document.getElementById('save-other-cost').value = (elec + deprec).toFixed(2);
+        }
+
+        ids.forEach(function (id) { document.getElementById(id).addEventListener('input', calc); });
+        calc();
+    })();
+</script>
+{% endblock %}

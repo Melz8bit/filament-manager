@@ -1,10 +1,11 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-100">
+<html lang="en" class="h-full {% if dark_mode %}dark{% endif %}">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="{% if dark_mode %}dark{% else %}light{% endif %}">
     <title>{% block title %}Filament Tracker{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
@@ -44,6 +45,50 @@
         .flatpickr-time .flatpickr-am-pm:focus {
             background: #e0e7ff
         }
+
+        /* Dark mode: flatpickr ships a light-only popup theme, so re-skin it manually */
+        html.dark .flatpickr-calendar {
+            background: #1f2937;
+            border-color: #374151;
+            box-shadow: 0 3px 13px rgba(0, 0, 0, 0.35);
+        }
+
+        html.dark .flatpickr-calendar.arrowTop:before { border-bottom-color: #374151; }
+        html.dark .flatpickr-calendar.arrowTop:after { border-bottom-color: #1f2937; }
+
+        html.dark .flatpickr-months .flatpickr-month,
+        html.dark .flatpickr-current-month input.cur-year,
+        html.dark .flatpickr-current-month .flatpickr-monthDropdown-months,
+        html.dark .flatpickr-weekdays,
+        html.dark span.flatpickr-weekday,
+        html.dark .flatpickr-time input,
+        html.dark .flatpickr-time .flatpickr-am-pm {
+            background: #1f2937;
+            color: #d1d5db;
+        }
+
+        html.dark .flatpickr-day { color: #e5e7eb; }
+
+        html.dark .flatpickr-day.flatpickr-disabled,
+        html.dark .flatpickr-day.prevMonthDay,
+        html.dark .flatpickr-day.nextMonthDay {
+            color: #6b7280;
+        }
+
+        html.dark .flatpickr-day:hover,
+        html.dark .flatpickr-day:focus {
+            background: #374151;
+            border-color: #374151;
+            color: #fff;
+        }
+
+        html.dark .flatpickr-months .flatpickr-prev-month svg,
+        html.dark .flatpickr-months .flatpickr-next-month svg {
+            fill: #9ca3af;
+        }
+
+        html.dark .numInputWrapper span.arrowUp:after { border-bottom-color: #9ca3af; }
+        html.dark .numInputWrapper span.arrowDown:after { border-top-color: #9ca3af; }
     </style>
     <meta name="htmx-config" content='{"historyCacheSize": 0}'>
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
@@ -89,7 +134,7 @@
     </script>
 </head>
 
-<body class="h-full m-0 bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body class="h-full m-0 bg-gray-100 dark:bg-gray-900" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     <div class="min-h-full">
         <!-- Top navigation -->
@@ -102,13 +147,11 @@
                         {% if user.is_authenticated %}
                         <div class="hidden md:flex items-center gap-1">
                             <a href="{% url 'dashboard' %}"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                                  {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-800 text-white{% endif %}">
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-800 text-white{% endif %}">
                                 Dashboard
                             </a>
                             <a href="{% url 'spool-list' %}"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                                  {% if request.resolver_match.url_name in 'spool-list,spool-add,spool-edit,spool-delete' %}bg-indigo-800 text-white{% endif %}">
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name in 'spool-list,spool-add,spool-edit,spool-delete' %}bg-indigo-800 text-white{% endif %}">
                                 Inventory
                             </a>
                             <a href="{% url 'log-print' %}"
@@ -116,14 +159,16 @@
                                 Log a Print
                             </a>
                             <a href="{% url 'queue-list' %}"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                                  {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
                                 Queue
                             </a>
                             <a href="{% url 'print-history' %}"
-                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                                  {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
                                 History
+                            </a>
+                            <a href="{% url 'calculator' %}"
+                                class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'calculator' %}bg-indigo-800 text-white{% endif %}">
+                                Calculator
                             </a>
                         </div>
                         {% endif %}
@@ -132,7 +177,22 @@
                     <!-- Right: desktop user info + sign out; mobile hamburger -->
                     <div class="flex items-center justify-center gap-3">
                         {% if user.is_authenticated %}
-                        <a href="{% url 'account' %}" class="text-indigo-200 text-sm hidden sm:block hover:text-white transition-colors">{{ user.username }}</a>
+                        <a href="{% url 'account' %}" class="text-indigo-200 text-sm hidden sm:block hover:text-white transition-colors dark:text-indigo-300">{{ user.username }}</a>
+                        <form method="post" action="{% url 'theme-toggle' %}" class="contents">
+                            {% csrf_token %}
+                            <button type="submit" title="Toggle dark mode"
+                                class="inline-flex items-center justify-center p-2 rounded-md text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors">
+                                {% if dark_mode %}
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                                </svg>
+                                {% else %}
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                                </svg>
+                                {% endif %}
+                            </button>
+                        </form>
                         <form method="post" action="{% url 'logout' %}" class="contents">
                             {% csrf_token %}
                             <button type="submit"
@@ -158,13 +218,11 @@
             <div id="mobile-nav" class="hidden md:hidden border-t border-indigo-600">
                 <div class="px-2 pt-2 pb-3 space-y-1">
                     <a href="{% url 'dashboard' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                          {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-800 text-white{% endif %}">
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-800 text-white{% endif %}">
                         Dashboard
                     </a>
                     <a href="{% url 'spool-list' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                          {% if request.resolver_match.url_name in 'spool-list,spool-add,spool-edit,spool-delete' %}bg-indigo-800 text-white{% endif %}">
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name in 'spool-list,spool-add,spool-edit,spool-delete' %}bg-indigo-800 text-white{% endif %}">
                         Inventory
                     </a>
                     <a href="{% url 'log-print' %}"
@@ -172,20 +230,21 @@
                         Log a Print
                     </a>
                     <a href="{% url 'queue-list' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                          {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name in 'queue-list,queue-add,queue-upload' %}bg-indigo-800 text-white{% endif %}">
                         Queue
                     </a>
                     <a href="{% url 'print-history' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                          {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'print-history' %}bg-indigo-800 text-white{% endif %}">
                         History
+                    </a>
+                    <a href="{% url 'calculator' %}"
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'calculator' %}bg-indigo-800 text-white{% endif %}">
+                        Calculator
                     </a>
                 </div>
                 <div class="border-t border-indigo-600 px-2 py-3">
                     <a href="{% url 'account' %}"
-                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors
-                          {% if request.resolver_match.url_name == 'account' %}bg-indigo-800 text-white{% endif %}">
+                        class="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors {% if request.resolver_match.url_name == 'account' %}bg-indigo-800 text-white{% endif %}">
                         Account <span class="text-indigo-400 text-sm font-normal">({{ user.username }})</span>
                     </a>
                     <form method="post" action="{% url 'logout' %}">
@@ -204,11 +263,7 @@
         {% if messages %}
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
             {% for message in messages %}
-            <div class="mb-2 rounded-md px-4 py-3 text-sm
-            {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200
-            {% elif message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200
-            {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200
-            {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+            <div class="mb-2 rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200 dark:text-red-300 dark:border-red-900 {% elif message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-900 {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900 {% else %}bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}

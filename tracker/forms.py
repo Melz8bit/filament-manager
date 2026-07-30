@@ -1,8 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Spool, FilamentProduct
+from .models import Spool, FilamentProduct, PrintSale
 
-_input_cls = 'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm'
+_input_cls = (
+    'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm '
+    'bg-white text-gray-900 placeholder-gray-400 '
+    'dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-500'
+)
 _select_cls = _input_cls
 
 
@@ -59,6 +63,19 @@ class AccountForm(forms.ModelForm):
         widgets = {
             'username': forms.TextInput(attrs={'class': _input_cls}),
             'email': forms.EmailInput(attrs={'class': _input_cls}),
+        }
+
+
+class PrintSaleForm(forms.ModelForm):
+    class Meta:
+        model = PrintSale
+        fields = ['date', 'item_description', 'printer', 'sale_price', 'notes']
+        widgets = {
+            'date': forms.DateInput(attrs={'class': _input_cls, 'type': 'text', 'data-date-picker': ''}),
+            'item_description': forms.TextInput(attrs={'class': _input_cls}),
+            'printer': forms.TextInput(attrs={'class': _input_cls, 'placeholder': 'e.g. A1 Mini'}),
+            'sale_price': forms.NumberInput(attrs={'class': _input_cls, 'placeholder': 'blank = not sold yet', 'step': '0.01'}),
+            'notes': forms.TextInput(attrs={'class': _input_cls, 'placeholder': 'Optional'}),
         }
 
 

@@ -5,8 +5,8 @@
 {% block content %}
 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Inventory</h1>
-        <p class="mt-1 text-sm text-gray-500">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Inventory</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {% if f %}
                 {{ spools|length }} of {{ total_count }} spool{{ total_count|pluralize }}
             {% else %}
@@ -16,15 +16,15 @@
     </div>
     <div class="flex items-center justify-between sm:justify-end gap-3">
         <a href="{% url 'filament-product-list' %}"
-           class="text-sm text-gray-500 hover:text-gray-700 transition-colors">Product Library</a>
+           class="text-sm text-gray-500 hover:text-gray-700 transition-colors dark:text-gray-400 dark:hover:text-gray-300">Product Library</a>
         <!-- View toggle: hidden on mobile, which always shows Grouped -->
-        <div class="hidden sm:inline-flex rounded-md border border-gray-200 overflow-hidden text-sm">
+        <div class="hidden sm:inline-flex rounded-md border border-gray-200 overflow-hidden text-sm dark:border-gray-700">
             <button onclick="setSpoolView('cards')"
-                    class="px-3 py-1.5 {% if view_mode == 'cards' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} transition-colors">
+                    class="px-3 py-1.5 {% if view_mode == 'cards' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} transition-colors dark:text-gray-400 dark:hover:bg-gray-700">
                 Cards
             </button>
             <button onclick="setSpoolView('grouped')"
-                    class="px-3 py-1.5 border-l border-gray-200 {% if view_mode == 'grouped' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} transition-colors">
+                    class="px-3 py-1.5 border-l border-gray-200 {% if view_mode == 'grouped' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} transition-colors dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-700">
                 Grouped
             </button>
         </div>
@@ -36,12 +36,12 @@
 </div>
 
 <!-- Filters -->
-<form method="get" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+<form method="get" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 dark:bg-gray-800 dark:border-gray-700">
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Brand</label>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Brand</label>
             <select name="brand"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                 <option value="">All brands</option>
                 {% for b in brands %}
                 <option value="{{ b }}" {% if f.brand == b %}selected{% endif %}>{{ b }}</option>
@@ -49,9 +49,9 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Material</label>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Material</label>
             <select name="material"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                 <option value="">All materials</option>
                 {% for m in materials %}
                 <option value="{{ m }}" {% if f.material == m %}selected{% endif %}>{{ m }}</option>
@@ -59,15 +59,15 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Color</label>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Color</label>
             <input type="text" name="color" value="{{ f.color }}"
                    placeholder="Search color…"
-                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Sort</label>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Sort</label>
             <select name="sort"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                 <option value="brand_asc"      {% if f.sort == "brand_asc"      or not f.sort %}selected{% endif %}>Brand A→Z</option>
                 <option value="brand_desc"     {% if f.sort == "brand_desc"     %}selected{% endif %}>Brand Z→A</option>
                 <option value="color_asc"      {% if f.sort == "color_asc"      %}selected{% endif %}>Color A→Z</option>
@@ -78,10 +78,10 @@
             </select>
         </div>
         <div class="flex flex-col justify-end">
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-2 dark:text-gray-300">
                 <input type="checkbox" name="low_stock" value="1"
                        {% if f.low_stock %}checked{% endif %}
-                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:text-indigo-400 dark:border-gray-600">
                 Low stock only
             </label>
         </div>
@@ -93,7 +93,7 @@
         </button>
         {% if f %}
         <a href="{% url 'spool-list' %}"
-           class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+           class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
             Clear
         </a>
         {% endif %}
@@ -101,13 +101,13 @@
 </form>
 
 {% if not spools %}
-<div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+<div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center dark:bg-gray-800 dark:border-gray-600">
     {% if f %}
-    <p class="text-sm font-medium text-gray-500">No spools match those filters.</p>
-    <a href="{% url 'spool-list' %}" class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-800">Clear filters</a>
+    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No spools match those filters.</p>
+    <a href="{% url 'spool-list' %}" class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">Clear filters</a>
     {% else %}
-    <p class="text-sm font-medium text-gray-500">No spools yet</p>
-    <p class="mt-1 text-sm text-gray-400">Add your first spool to start tracking inventory.</p>
+    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No spools yet</p>
+    <p class="mt-1 text-sm text-gray-400 dark:text-gray-500">Add your first spool to start tracking inventory.</p>
     <a href="{% url 'spool-add' %}"
        class="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
         Add Spool

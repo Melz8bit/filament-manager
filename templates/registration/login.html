@@ -1,6 +1,6 @@
 ﻿{% load static %}
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-100">
+<html lang="en" class="h-full bg-gray-100 dark:bg-gray-700">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,34 +10,34 @@
 <body class="h-full">
 <div class="min-h-full flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <h1 class="text-center text-3xl font-bold tracking-tight text-gray-900">Filament Tracker</h1>
-        <p class="mt-2 text-center text-sm text-gray-500">3D print filament inventory</p>
+        <h1 class="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Filament Tracker</h1>
+        <p class="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">3D print filament inventory</p>
     </div>
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="bg-white py-8 px-4 shadow-sm rounded-lg sm:px-10 border border-gray-200">
+        <div class="bg-white py-8 px-4 shadow-sm rounded-lg sm:px-10 border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
             <form method="post" class="space-y-5">
                 {% csrf_token %}
 
                 {% if form.errors %}
-                <div class="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                <div class="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-300 dark:border-red-900">
                     Invalid username or password.
                 </div>
                 {% endif %}
 
                 <div>
-                    <label for="id_username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <label for="id_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                     <div class="mt-1">
                         <input id="id_username" name="username" type="text" autocomplete="username" required
-                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                     </div>
                 </div>
 
                 <div>
-                    <label for="id_password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <label for="id_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                     <div class="mt-1">
                         <input id="id_password" name="password" type="password" autocomplete="current-password" required
-                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                     </div>
                 </div>
 

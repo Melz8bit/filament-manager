@@ -6,21 +6,21 @@
 
         <!-- Slicer color swatch + grams -->
         <div class="flex-shrink-0 text-center">
-            <div class="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-gray-200 mx-auto"
+            <div class="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-gray-200 mx-auto dark:ring-gray-700 dark:ring-offset-gray-800"
                 style="background-color: {{ ps.slicer_hex }}"></div>
-            <p class="mt-1 text-xs text-gray-400">{{ ps.grams_used|floatformat:1 }}g</p>
+            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ ps.grams_used|floatformat:1 }}g</p>
         </div>
 
         <!-- Spool selector + Split button -->
         <div class="flex-1 min-w-0">
-            <label for="spool_{{ ps.pk }}" class="block text-xs font-medium text-gray-500 mb-1">
+            <label for="spool_{{ ps.pk }}" class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">
                 {{ ps.slicer_hex }}
             </label>
             <div class="flex items-center gap-2">
                 <select id="spool_{{ ps.pk }}"
                     name="spool_{{ ps.pk }}"
                     onchange="checkSpoolCapacity(this, {{ ps.grams_used }}, '{{ ps.pk }}')"
-                    class="block flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    class="block flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
                     <option value="">— Unassigned —</option>
                     {% for spool in slot.spools %}
                     <option value="{{ spool.pk }}"
@@ -34,7 +34,7 @@
                     hx-get="{% url 'spool-slot-split' ps.pk %}"
                     hx-target="#slot-{{ ps.pk }}"
                     hx-swap="outerHTML"
-                    class="flex-shrink-0 rounded-md border border-gray-300 bg-white px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    class="flex-shrink-0 rounded-md border border-gray-300 bg-white px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
                     Split
                 </button>
             </div>
@@ -43,17 +43,17 @@
     </div>
 
     <!-- Continuation spool section — shown when selected spool can't cover the full amount -->
-    <div id="cont-{{ ps.pk }}" class="hidden mt-3 rounded-md bg-amber-50 border border-amber-200 p-3">
-        <p class="text-xs font-medium text-amber-800 mb-2">
+    <div id="cont-{{ ps.pk }}" class="hidden mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950 dark:border-amber-800">
+        <p class="text-xs font-medium text-amber-800 mb-2 dark:text-amber-300">
             ⚠️ <span id="cont-warn-{{ ps.pk }}"></span>
         </p>
-        <label for="cont-spool-{{ ps.pk }}" class="block text-xs font-medium text-gray-600 mb-1">
+        <label for="cont-spool-{{ ps.pk }}" class="block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400">
             Replacement spool (picks up where the first runs out)
         </label>
         <select id="cont-spool-{{ ps.pk }}"
                 name="continuation_spool_{{ ps.pk }}"
                 onchange="updateContGrams('{{ ps.pk }}', {{ ps.grams_used }})"
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
             <option value="">— Select replacement spool —</option>
             {% for spool in slot.spools %}
             <option value="{{ spool.pk }}" data-remaining="{{ spool.remaining_g }}">
@@ -61,7 +61,7 @@
             </option>
             {% endfor %}
         </select>
-        <p id="cont-grams-{{ ps.pk }}" class="hidden mt-1.5 text-xs text-gray-500"></p>
+        <p id="cont-grams-{{ ps.pk }}" class="hidden mt-1.5 text-xs text-gray-500 dark:text-gray-400"></p>
     </div>
 
 </div>

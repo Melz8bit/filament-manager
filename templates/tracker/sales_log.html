@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Log — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Sales Log</h1>
+    <a href="{% url 'calculator' %}"
+       class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors">
+        + Cost Calculator
+    </a>
+</div>
+
+<!-- Summary -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Total Prints</p>
+        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{{ total_prints }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Total Revenue</p>
+        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">${{ total_revenue|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Total Profit</p>
+        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">${{ total_profit|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Avg Margin</p>
+        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{% if avg_margin is not None %}{{ avg_margin|floatformat:0 }}%{% else %}—{% endif %}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Total Cost</p>
+        <p class="mt-2 text-xl font-semibold text-gray-700 dark:text-gray-300">${{ total_cost|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Avg Sale Price</p>
+        <p class="mt-2 text-xl font-semibold text-gray-700 dark:text-gray-300">{% if avg_sale_price is not None %}${{ avg_sale_price|floatformat:2 }}{% else %}—{% endif %}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Avg Profit / Print</p>
+        <p class="mt-2 text-xl font-semibold text-gray-700 dark:text-gray-300">{% if avg_profit is not None %}${{ avg_profit|floatformat:2 }}{% else %}—{% endif %}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Most Used Printer</p>
+        <p class="mt-2 text-xl font-semibold text-gray-700 dark:text-gray-300">{{ most_used_printer|default:"—" }}</p>
+    </div>
+</div>
+
+{% if sales %}
+<!-- Desktop table -->
+<div class="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Item</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Printer</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Cost</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Sale Price</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Profit</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Margin</th>
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 bg-white dark:bg-gray-800 dark:divide-gray-700">
+                {% for sale in sales %}
+                <tr class="hover:bg-gray-50 transition-colors dark:hover:bg-gray-700">
+                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{{ sale.date|date:"M j, Y" }}</td>
+                    <td class="px-4 py-3">
+                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ sale.item_description }}</p>
+                        {% if sale.notes %}<p class="text-xs text-gray-400 dark:text-gray-500">{{ sale.notes }}</p>{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">{{ sale.printer|default:"—" }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap dark:text-gray-300">${{ sale.total_cost|floatformat:2 }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap dark:text-gray-300">
+                        {% if sale.sale_price is not None %}${{ sale.sale_price|floatformat:2 }}{% else %}<span class="text-gray-400 italic dark:text-gray-500">Not sold</span>{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-right whitespace-nowrap {% if sale.profit is not None %}{% if sale.profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}{% else %}text-gray-400{% endif %}">
+                        {% if sale.profit is not None %}${{ sale.profit|floatformat:2 }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500 text-right whitespace-nowrap dark:text-gray-400">
+                        {% if sale.margin_pct is not None %}{{ sale.margin_pct|floatformat:0 }}%{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <a href="{% url 'sale-edit' sale.pk %}" class="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Mobile cards -->
+<div class="sm:hidden space-y-3">
+    {% for sale in sales %}
+    <a href="{% url 'sale-edit' sale.pk %}" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex items-baseline justify-between gap-2">
+            <p class="text-base font-semibold text-gray-900 break-words min-w-0 dark:text-gray-100">{{ sale.item_description }}</p>
+            <span class="flex-shrink-0 text-sm font-semibold {% if sale.profit is not None %}{% if sale.profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}{% else %}text-gray-400{% endif %}">
+                {% if sale.profit is not None %}${{ sale.profit|floatformat:2 }}{% else %}Not sold{% endif %}
+            </span>
+        </div>
+        <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+            <span>{{ sale.date|date:"M j, Y" }}</span>
+            {% if sale.printer %}<span>{{ sale.printer }}</span>{% endif %}
+            <span>Cost ${{ sale.total_cost|floatformat:2 }}</span>
+            {% if sale.sale_price is not None %}<span>Sold ${{ sale.sale_price|floatformat:2 }}</span>{% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center dark:bg-gray-800 dark:border-gray-600">
+    <p class="text-sm text-gray-500 dark:text-gray-400">No sales logged yet.</p>
+    <a href="{% url 'calculator' %}"
+       class="mt-3 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+        Go to Cost Calculator
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}

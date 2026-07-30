@@ -1,0 +1,91 @@
+{% if confirmed_prints %}
+<div class="relative" id="usage-wrap-{{ chart_id }}">
+    <svg id="usage-svg-{{ chart_id }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+         class="w-full h-auto" role="img" aria-label="{{ aria_label }}">
+        <line class="stroke-gray-200 dark:stroke-gray-700" x1="{{ chart.left_x }}" y1="{{ chart.grid_0_y }}" x2="{{ chart.right_x }}" y2="{{ chart.grid_0_y }}" stroke-width="1"/>
+        <line class="stroke-gray-200 dark:stroke-gray-700" x1="{{ chart.left_x }}" y1="{{ chart.grid_mid_y }}" x2="{{ chart.right_x }}" y2="{{ chart.grid_mid_y }}" stroke-width="1"/>
+
+        <text class="fill-gray-400 dark:fill-gray-500" x="0" y="{{ chart.label_0_y }}" font-size="9">0</text>
+        <text class="fill-gray-400 dark:fill-gray-500" x="0" y="{{ chart.label_mid_y }}" font-size="9">{{ chart.mid_label }}</text>
+        <text class="fill-gray-400 dark:fill-gray-500" x="0" y="{{ chart.label_max_y }}" font-size="9">{{ chart.max_label }}</text>
+
+        <path class="fill-indigo-600 dark:fill-indigo-400" d="{{ chart.area_path }}" fill-opacity="0.1"></path>
+        <polyline class="stroke-indigo-600 dark:stroke-indigo-400" points="{{ chart.polyline }}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+
+        <line id="usage-crosshair-{{ chart_id }}" class="stroke-gray-300 dark:stroke-gray-600" x1="0" y1="{{ chart.grid_max_y }}" x2="0" y2="{{ chart.grid_0_y }}" stroke-width="1" style="display:none"></line>
+
+        {% for p in chart.points %}
+        <circle class="usage-pt fill-indigo-600 dark:fill-indigo-400 stroke-white dark:stroke-gray-800" cx="{{ p.x }}" cy="{{ p.y }}" r="4" stroke-width="2"
+                tabindex="0" data-x="{{ p.x }}" data-label="{{ p.label }}" data-value="{{ p.value }}"></circle>
+        {% endfor %}
+
+        <text class="fill-gray-900 dark:fill-gray-100 stroke-white dark:stroke-gray-800" x="{{ chart.end_point.x }}" y="{{ chart.end_point.y }}" dy="-8" text-anchor="end" font-size="10" font-weight="600"
+              stroke-width="3" paint-order="stroke">{{ chart.end_point.value }}g</text>
+    </svg>
+    <div id="usage-tooltip-{{ chart_id }}" class="hidden absolute top-0 -translate-x-1/2 -mt-1 rounded-md bg-gray-900 px-2.5 py-1.5 text-xs shadow-lg pointer-events-none whitespace-nowrap z-10"></div>
+</div>
+<script>
+(function () {
+    var svg = document.getElementById('usage-svg-{{ chart_id }}');
+    var crosshair = document.getElementById('usage-crosshair-{{ chart_id }}');
+    var tooltip = document.getElementById('usage-tooltip-{{ chart_id }}');
+    var wrap = document.getElementById('usage-wrap-{{ chart_id }}');
+    var width = {{ chart.width }};
+    var points = Array.prototype.slice.call(svg.querySelectorAll('.usage-pt')).map(function (el) {
+        return { x: parseFloat(el.dataset.x), label: el.dataset.label, value: el.dataset.value, el: el };
+    });
+    if (!points.length) return;
+
+    function show(p) {
+        crosshair.setAttribute('x1', p.x);
+        crosshair.setAttribute('x2', p.x);
+        crosshair.style.display = '';
+        points.forEach(function (pt) { pt.el.setAttribute('r', pt === p ? 6 : 4); });
+
+        tooltip.textContent = '';
+        var value = document.createElement('div');
+        value.className = 'font-semibold text-white';
+        value.textContent = p.value + ' g';
+        var label = document.createElement('div');
+        label.className = 'text-gray-400';
+        label.textContent = p.label;
+        tooltip.appendChild(value);
+        tooltip.appendChild(label);
+        tooltip.classList.remove('hidden');
+
+        var svgRect = svg.getBoundingClientRect();
+        var wrapRect = wrap.getBoundingClientRect();
+        var scaleX = svgRect.width / width;
+        var left = (p.x * scaleX) + (svgRect.left - wrapRect.left);
+        tooltip.style.left = Math.min(Math.max(left, 30), wrapRect.width - 30) + 'px';
+    }
+
+    function hide() {
+        crosshair.style.display = 'none';
+        points.forEach(function (pt) { pt.el.setAttribute('r', 4); });
+        tooltip.classList.add('hidden');
+    }
+
+    function nearest(clientX) {
+        var svgRect = svg.getBoundingClientRect();
+        var scaleX = width / svgRect.width;
+        var localX = (clientX - svgRect.left) * scaleX;
+        var best = points[0], bestDist = Infinity;
+        points.forEach(function (p) {
+            var d = Math.abs(p.x - localX);
+            if (d < bestDist) { bestDist = d; best = p; }
+        });
+        return best;
+    }
+
+    svg.addEventListener('pointermove', function (e) { show(nearest(e.clientX)); });
+    svg.addEventListener('pointerleave', hide);
+    points.forEach(function (p) {
+        p.el.addEventListener('focus', function () { show(p); });
+        p.el.addEventListener('blur', hide);
+    });
+})();
+</script>
+{% else %}
+<p class="text-sm text-gray-400 text-center py-10 dark:text-gray-500">No confirmed prints yet.</p>
+{% endif %}
