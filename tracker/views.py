@@ -348,6 +348,7 @@ class PrintSaleDeleteView(LoginRequiredMixin, View):
 
 _CHART_W, _CHART_H = 600, 160
 _CHART_PAD = 8
+_CHART_PAD_TOP = 20  # extra headroom so the end-point value label never clips against the top edge
 _CHART_ACCENT = "#4f46e5"  # indigo-600, matches the app's accent throughout
 
 
@@ -390,13 +391,13 @@ def _usage_chart(period="week", periods=12):
 
     max_val = max((w["value"] for w in series), default=0) or 1
     usable_w = _CHART_W - 2 * _CHART_PAD
-    usable_h = _CHART_H - 2 * _CHART_PAD
+    usable_h = _CHART_H - _CHART_PAD_TOP - _CHART_PAD
     n = len(series)
 
     points = []
     for i, w in enumerate(series):
         x = _CHART_PAD + (usable_w * i / (n - 1) if n > 1 else 0)
-        y = _CHART_PAD + usable_h - (w["value"] / max_val * usable_h)
+        y = _CHART_PAD_TOP + usable_h - (w["value"] / max_val * usable_h)
         if period == "week":
             week_start = w["date"]
             week_end = week_start + timedelta(days=6)
@@ -413,7 +414,7 @@ def _usage_chart(period="week", periods=12):
             "value": round(w["value"]),
         })
 
-    baseline_y = _CHART_PAD + usable_h
+    baseline_y = _CHART_PAD_TOP + usable_h
     polyline = " ".join(f"{p['x']},{p['y']}" for p in points)
     area = (
         f"M{points[0]['x']},{baseline_y} "
@@ -421,7 +422,7 @@ def _usage_chart(period="week", periods=12):
         + f" L{points[-1]['x']},{baseline_y} Z"
     )
 
-    grid_mid_y = round(_CHART_PAD + usable_h / 2, 1)
+    grid_mid_y = round(_CHART_PAD_TOP + usable_h / 2, 1)
 
     return {
         "width": _CHART_W,
@@ -434,10 +435,10 @@ def _usage_chart(period="week", periods=12):
         "area_path": area,
         "grid_0_y": round(baseline_y, 1),
         "grid_mid_y": grid_mid_y,
-        "grid_max_y": _CHART_PAD,
+        "grid_max_y": _CHART_PAD_TOP,
         "label_0_y": round(baseline_y + 3, 1),
         "label_mid_y": round(grid_mid_y + 3, 1),
-        "label_max_y": _CHART_PAD + 9,
+        "label_max_y": _CHART_PAD_TOP + 9,
         "mid_label": round(max_val / 2),
         "max_label": round(max_val),
         "accent": _CHART_ACCENT,
