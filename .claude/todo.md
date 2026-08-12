@@ -102,3 +102,6 @@
 - [x] Added `static/favicon.svg` (simple indigo spool icon) — was 404ing on every page load, no favicon existed anywhere in the app
 - [x] Dashboard usage charts: fixed the end-of-line value label clipping against the chart's top edge when the highest value in the series is also the most recent point (very large day/week totals) — added dedicated top headroom (`_CHART_PAD_TOP`) separate from the side/bottom padding
 - [x] Nav: added a third responsive tier for medium widths (~768–1024px — tablets, foldable-interior screens) where the full link row didn't fit but the desktop breakpoint had already activated, causing "Log a Print" to wrap onto 3 lines. New "Menu ▾" trigger opens a compact 2-column dropdown card (styled like a desktop dropdown, not a reused mobile sheet); true mobile hamburger and full desktop row both untouched
+
+### Polish & Fixes (2026-08-12)
+- [x] Swapped favicon from the placeholder SVG to a user-supplied `static/filament-icon.png` (64x64, transparent, actual spool icon); removed the now-unused `favicon.svg`
