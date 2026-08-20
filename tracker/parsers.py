@@ -31,6 +31,7 @@ def parse_gcode(file_obj):
             continue
         if not hex_val.startswith("#"):
             hex_val = "#" + hex_val
+        hex_val = hex_val[:7]  # drop alpha channel if present (RRGGBBAA -> RRGGBB)
         results.append({"grams": grams, "hex": hex_val, "material": material})
 
     return results
@@ -63,6 +64,7 @@ def parse_3mf(file_obj):
             hex_val = elem.get("color", "")
             if not hex_val.startswith("#"):
                 hex_val = "#" + hex_val
+            hex_val = hex_val[:7]  # drop alpha channel if present (RRGGBBAA -> RRGGBB)
 
             material = elem.get("type", "")
             results.append(
