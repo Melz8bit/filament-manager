@@ -13,6 +13,9 @@
 - [ ] Process to handle failed prints
 - [x] Print cost calculator, logged to the project — `/calculator/` (Material/Electricity/Depreciation/Labor breakdown, live totals, Bambu A1 Mini/P1S presets) + `/sales-log/` (saved entries with summary stats, mirrors the user's spreadsheet: total prints, revenue, profit, avg margin, most-used printer); `PrintSale` model, edit/delete per entry
 
+### Bug Fixes (2026-08-19)
+- [x] Uploading a `.3mf` with an 8-digit slicer color (`RRGGBBAA`, includes alpha) crashed with a 500 — `PrintSpool.slicer_hex` is `CharField(max_length=7)` and Postgres/Supabase enforces that length on insert, unlike SQLite. `parse_3mf`/`parse_gcode` in `parsers.py` now truncate parsed hex colors to 6 digits before returning them
+
 ---
 
 ## Completed
