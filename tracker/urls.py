@@ -34,6 +34,7 @@ urlpatterns = [
     path("theme/toggle/", views.toggle_theme, name="theme-toggle"),
     path("account/password/", views.AccountPasswordChangeView.as_view(), name="password-change"),
     path("history/", views.PrintHistoryView.as_view(), name="print-history"),
+    path("prints/<int:pk>/fail/", views.PrintFailedView.as_view(), name="print-failed"),
     path("calculator/", views.calculator, name="calculator"),
     path("calculator/save/", views.PrintSaleCreateView.as_view(), name="sale-add"),
     path("sales-log/", views.SalesLogListView.as_view(), name="sales-log"),

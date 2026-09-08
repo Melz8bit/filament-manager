@@ -81,11 +81,15 @@ class PrintLog(models.Model):
             ("queued", "Queued"),
             ("pending_assignment", "Pending Assignment"),
             ("confirmed", "Confirmed"),
+            ("failed", "Failed"),
         ],
         default="pending_assignment",
     )
     queue_notes = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+    failed_at_layer = models.PositiveIntegerField(null=True, blank=True)
+    failed_total_layers = models.PositiveIntegerField(null=True, blank=True)
+    failed_at_percent = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,6 +97,11 @@ class PrintLog(models.Model):
     @property
     def total_grams_used(self):
         return sum(ps.grams_used for ps in self.spools_used.all())
+
+    @property
+    def grams_printed(self):
+        """Grams actually extruded before failure (equals total_grams_used for non-failed prints)."""
+        return sum(ps.grams_used - ps.grams_returned for ps in self.spools_used.all())
 
     @property
     def cost_estimate(self):
@@ -153,3 +162,5 @@ class PrintSpool(models.Model):
     )
     grams_used = models.FloatField()
     slicer_hex = models.CharField(max_length=7, blank=True)
+    slicer_material = models.CharField(max_length=50, blank=True)
+    grams_returned = models.FloatField(default=0)

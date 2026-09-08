@@ -8,9 +8,10 @@
 ### Quality / UX
 - [ ] Forgot password link on login page (requires email backend setup)
 - [x] Log a Print: filament selection dropdown should not show 0g spools — `remaining_g__gt=0` filter applied to all 4 spool-selection query sites in `views.py` (main assignment, slot restore, split GET/POST)
+- [x] Spool assignment default selection now material-aware (2026-09-08) — was defaulting a plain PLA print to e.g. a "Black HT-PLA" spool just because it was closer alphabetically/color-wise; now prefers an exact material match, falls back to plain PLA, then any spool, ranked by color distance within that group. `PrintSpool.slicer_material` field added to persist the gcode's parsed filament type (was previously parsed but discarded); `rank_spools_by_material_and_color()` in `utils.py`
 
 ### Features
-- [ ] Process to handle failed prints
+- [x] Process to handle failed prints (2026-09-08) — "Failed Print" button on confirmed prints in history, expands an inline row for layer number (preferred) or percent complete; `estimate_remaining_by_layer()` in `parsers.py` walks the actual gcode extrusion per color between `; CHANGE_LAYER` markers to credit back the real unused amount per spool (not just a naive uniform fraction), falling back to percent-based uniform credit when no per-layer gcode data is available. `PrintLog.failed_at_layer/failed_total_layers/failed_at_percent` + `PrintSpool.grams_returned` fields; 15 regression tests in `tracker/tests.py` including one against a real 4-color 405-layer fixture file
 - [x] Print cost calculator, logged to the project — `/calculator/` (Material/Electricity/Depreciation/Labor breakdown, live totals, Bambu A1 Mini/P1S presets) + `/sales-log/` (saved entries with summary stats, mirrors the user's spreadsheet: total prints, revenue, profit, avg margin, most-used printer); `PrintSale` model, edit/delete per entry
 
 ### Bug Fixes (2026-08-19)

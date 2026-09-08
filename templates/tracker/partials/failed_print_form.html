@@ -1,0 +1,35 @@
+<form id="fail-form-{% if mobile %}mobile-{% endif %}{{ print.pk }}"
+      method="post" action="{% url 'print-failed' print.pk %}"
+      class="{% if mobile %}hidden mt-2{% endif %} text-left">
+    {% csrf_token %}
+    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">
+        Layer number shown on the printer when cancelled (preferred), or percent complete.
+    </p>
+    <div class="flex flex-wrap items-end gap-2">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">Failed at layer</label>
+            <input type="number" name="failed_layer" min="1" step="1" placeholder="e.g. 120"
+                   class="h-8 w-24 rounded-md border-gray-300 shadow-sm text-xs px-2 focus:border-red-500 focus:ring-red-500 dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+        </div>
+        <span class="text-xs text-gray-400 dark:text-gray-500 pb-2">or</span>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400">% complete</label>
+            <input type="number" name="failed_percent" min="0" max="100" step="0.1" placeholder="e.g. 45"
+                   class="h-8 w-20 rounded-md border-gray-300 shadow-sm text-xs px-2 focus:border-red-500 focus:ring-red-500 dark:border-gray-600 bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+        </div>
+        <div>
+            <span class="block text-xs mb-1 invisible" aria-hidden="true">Action</span>
+            <div class="flex gap-2">
+                <button type="submit"
+                        class="h-8 inline-flex items-center justify-center rounded-md bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-700 transition-colors">
+                    Mark Failed
+                </button>
+                <button type="button"
+                        onclick="this.form.reset(); document.getElementById('{% if mobile %}fail-form-mobile-{{ print.pk }}{% else %}fail-row-{{ print.pk }}{% endif %}').classList.add('hidden')"
+                        class="h-8 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</form>

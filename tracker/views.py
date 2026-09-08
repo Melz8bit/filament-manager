@@ -237,8 +237,8 @@ def _fetch_makerworld_filaments(url):
 
 
 from .constants import LOW_STOCK_THRESHOLD_G, PRINT_NAME_MAX_LENGTH
-from .parsers import parse_3mf, parse_gcode
-from .utils import parse_filament_product, is_filament_product, rank_spools_by_color
+from .parsers import parse_3mf, parse_gcode, estimate_remaining_by_layer
+from .utils import parse_filament_product, is_filament_product, rank_spools_by_material_and_color
 
 
 def _is_mobile_request(request):
@@ -769,6 +769,7 @@ class LogPrintView(LoginRequiredMixin, View):
                 print_log=print_log,
                 grams_used=slot["grams"],
                 slicer_hex=slot["hex"],
+                slicer_material=slot.get("material", ""),
             )
 
         return redirect("spool-assignment", pk=print_log.pk)
@@ -780,7 +781,7 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
         all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
         slots = []
         for ps in print_log.spools_used.all():
-            ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+            ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
             best_pk = ranked[0].pk if ranked else None
             slots.append({"print_spool": ps, "spools": all_spools, "best_pk": best_pk})
         return render(request, "tracker/spool_assignment.html", {
@@ -810,6 +811,7 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
                         spool=cont_spool,
                         grams_used=cont_grams,
                         slicer_hex=ps.slicer_hex,
+                        slicer_material=ps.slicer_material,
                     )
                     spool.remaining_g = 0
                     spool.save()
@@ -868,6 +870,7 @@ class QueueAddView(LoginRequiredMixin, View):
                 print_log=print_log,
                 grams_used=slot["grams"],
                 slicer_hex=slot["hex"],
+                slicer_material=slot.get("material", ""),
             )
 
         if slots:
@@ -910,6 +913,7 @@ class QueueUploadView(LoginRequiredMixin, View):
                 print_log=print_log,
                 grams_used=slot["grams"],
                 slicer_hex=slot["hex"],
+                slicer_material=slot.get("material", ""),
             )
 
         return redirect("spool-assignment", pk=print_log.pk)
@@ -971,7 +975,7 @@ class PrintHistoryView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = (
-            PrintLog.objects.filter(status="confirmed")
+            PrintLog.objects.filter(status__in=["confirmed", "failed"])
             .prefetch_related("spools_used__spool")
             .order_by("-printed_at")
         )
@@ -995,6 +999,98 @@ class PrintHistoryView(LoginRequiredMixin, ListView):
         return ctx
 
 
+class PrintFailedView(LoginRequiredMixin, View):
+    """Mark a confirmed print as failed and return the unused portion of each
+    assigned spool to inventory."""
+
+    def post(self, request, pk):
+        print_log = get_object_or_404(PrintLog, pk=pk, status="confirmed")
+
+        layer_raw = request.POST.get("failed_layer", "").strip()
+        percent_raw = request.POST.get("failed_percent", "").strip()
+
+        failed_layer = None
+        if layer_raw:
+            try:
+                failed_layer = int(layer_raw)
+            except ValueError:
+                messages.error(request, "Layer number must be a whole number.")
+                return redirect("print-history")
+            if failed_layer < 1:
+                messages.error(request, "Layer number must be at least 1.")
+                return redirect("print-history")
+
+        failed_percent = None
+        if percent_raw:
+            try:
+                failed_percent = float(percent_raw)
+            except ValueError:
+                messages.error(request, "Percent complete must be a number.")
+                return redirect("print-history")
+            if not (0 <= failed_percent <= 100):
+                messages.error(request, "Percent complete must be between 0 and 100.")
+                return redirect("print-history")
+
+        remaining_by_key = None
+        total_layers = None
+        display_percent = failed_percent
+        uniform_remaining_fraction = None
+
+        if failed_layer is not None:
+            if not print_log.source_file or print_log.source not in ("threemf", "gcode"):
+                messages.error(request, "No gcode/3mf file saved for this print — enter percent complete instead.")
+                return redirect("print-history")
+            print_log.source_file.open("rb")
+            try:
+                remaining_by_key, total_layers = estimate_remaining_by_layer(
+                    print_log.source_file, print_log.source, failed_layer
+                )
+            finally:
+                print_log.source_file.close()
+            if not total_layers:
+                messages.error(request, "This file has no per-layer data to calculate from — enter percent complete instead.")
+                return redirect("print-history")
+            if remaining_by_key is None:
+                messages.error(request, f"Layer number must be between 1 and {total_layers}.")
+                return redirect("print-history")
+            display_percent = round((failed_layer / total_layers) * 100, 1)
+        elif failed_percent is not None:
+            uniform_remaining_fraction = 1 - (failed_percent / 100)
+        else:
+            messages.error(request, "Enter a layer number or percent complete.")
+            return redirect("print-history")
+
+        with transaction.atomic():
+            for ps in print_log.spools_used.all():
+                if remaining_by_key is not None:
+                    fraction = remaining_by_key.get((ps.slicer_hex, ps.slicer_material))
+                    if fraction is None:
+                        # Unmatched slot (shouldn't normally happen) — fall back to the
+                        # print's overall layer progress as a reasonable estimate.
+                        fraction = 1 - (failed_layer / total_layers)
+                else:
+                    fraction = uniform_remaining_fraction
+
+                remaining_grams = max(0.0, min(float(ps.grams_used), float(ps.grams_used) * fraction))
+                ps.grams_returned = remaining_grams
+                ps.save()
+
+                if ps.spool:
+                    ps.spool.remaining_g = min(
+                        ps.spool.full_weight_g, ps.spool.remaining_g + remaining_grams
+                    )
+                    ps.spool.save()
+
+            print_log.status = "failed"
+            print_log.failed_at_layer = failed_layer
+            print_log.failed_total_layers = total_layers
+            print_log.failed_at_percent = display_percent
+            print_log.save()
+
+        messages.success(request, f'"{print_log.name}" marked as failed. Unused filament returned to inventory.')
+        return redirect("print-history")
+
+
 class SlotRowView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, "tracker/partials/slot_row.html")
@@ -1005,7 +1101,7 @@ class SpoolSlotRowView(LoginRequiredMixin, View):
     def get(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)
         all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
-        ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+        ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
         best_pk = ranked[0].pk if ranked else None
         return render(request, "tracker/partials/spool_slot_row.html", {
             "slot": {"print_spool": ps, "spools": all_spools, "best_pk": best_pk},
@@ -1019,7 +1115,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
         if ps.spool_id:
             best_pk = ps.spool_id
         else:
-            ranked = rank_spools_by_color(ps.slicer_hex, all_spools) if ps.slicer_hex else all_spools
+            ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
             best_pk = ranked[0].pk if ranked else None
         return {"print_spool": ps, "spools": all_spools, "best_pk": best_pk}
 
@@ -1034,6 +1130,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
     def post(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)
         original_grams = float(ps.grams_used)
+        original_material = ps.slicer_material
 
         spool_id_list = request.POST.getlist("split_spool")
         grams_list = request.POST.getlist("split_grams")
@@ -1081,6 +1178,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
                 print_log=print_log,
                 grams_used=split["grams"],
                 slicer_hex=split["hex"],
+                slicer_material=original_material,
                 spool=split["spool"],
             )
             new_slots.append(self._build_slot(new_ps, all_spools))
@@ -1146,6 +1244,7 @@ class ManualEntryView(LoginRequiredMixin, View):
                 print_log=print_log,
                 grams_used=slot["grams"],
                 slicer_hex=slot["hex"],
+                slicer_material=slot.get("material", ""),
             )
 
         return redirect("spool-assignment", pk=print_log.pk)

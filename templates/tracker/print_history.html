@@ -83,7 +83,20 @@
                 {% for print in prints %}
                 <tr class="hover:bg-gray-50 transition-colors dark:hover:bg-gray-700">
                     <td class="px-5 py-3">
-                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ print.name }}</p>
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ print.name }}</p>
+                            {% if print.status == "failed" %}
+                            <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                                Failed
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if print.status == "failed" %}
+                        <p class="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                            {% if print.failed_at_layer %}Layer {{ print.failed_at_layer }} of {{ print.failed_total_layers }}{% endif %}
+                            {% if print.failed_at_percent != None %}({{ print.failed_at_percent }}%){% endif %}
+                        </p>
+                        {% endif %}
                         {% if print.source_url %}
                         <a href="{{ print.source_url }}" target="_blank" rel="noopener"
                            class="text-xs text-indigo-500 hover:text-indigo-700 truncate block max-w-xs dark:text-indigo-400 dark:hover:text-indigo-300">
@@ -110,7 +123,11 @@
                         </div>
                     </td>
                     <td class="px-5 py-3 text-sm text-gray-700 text-right whitespace-nowrap dark:text-gray-300">
+                        {% if print.status == "failed" %}
+                        {{ print.grams_printed|floatformat:1 }}g <span class="text-gray-400 dark:text-gray-500">/ {{ print.total_grams_used|floatformat:1 }}g</span>
+                        {% else %}
                         {{ print.total_grams_used|floatformat:1 }}g
+                        {% endif %}
                     </td>
                     <td class="px-5 py-3 text-sm text-gray-700 text-right whitespace-nowrap dark:text-gray-300">
                         {% if print.cost_estimate %}
@@ -124,8 +141,22 @@
                            class="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
                             Calculate cost
                         </a>
+                        {% if print.status == "confirmed" %}
+                        <button type="button"
+                                onclick="document.getElementById('fail-row-{{ print.pk }}').classList.toggle('hidden')"
+                                class="ml-5 text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                            Failed Print
+                        </button>
+                        {% endif %}
                     </td>
                 </tr>
+                {% if print.status == "confirmed" %}
+                <tr id="fail-row-{{ print.pk }}" class="hidden">
+                    <td colspan="6" class="px-5 py-3 bg-red-50 border-t border-red-200 dark:bg-red-950 dark:border-red-800">
+                        {% include "tracker/partials/failed_print_form.html" %}
+                    </td>
+                </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
@@ -138,6 +169,11 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 dark:bg-gray-800 dark:border-gray-700">
         <div class="flex items-baseline flex-wrap gap-x-2 gap-y-1">
             <p class="text-base font-semibold text-gray-900 break-words min-w-0 dark:text-gray-100">{{ print.name }}</p>
+            {% if print.status == "failed" %}
+            <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                Failed
+            </span>
+            {% endif %}
             <div class="flex flex-wrap gap-1">
                 {% for ps in print.spools_used.all %}
                 <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
@@ -152,9 +188,19 @@
                 {% endfor %}
             </div>
         </div>
+        {% if print.status == "failed" %}
+        <p class="text-xs text-red-600 dark:text-red-400 mt-0.5">
+            {% if print.failed_at_layer %}Layer {{ print.failed_at_layer }} of {{ print.failed_total_layers }}{% endif %}
+            {% if print.failed_at_percent != None %}({{ print.failed_at_percent }}%){% endif %}
+        </p>
+        {% endif %}
         <div class="mt-1.5 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ print.printed_at|date:"M j, Y" }}</span>
+            {% if print.status == "failed" %}
+            <span>{{ print.grams_printed|floatformat:1 }}g <span class="text-gray-400 dark:text-gray-500">/ {{ print.total_grams_used|floatformat:1 }}g</span></span>
+            {% else %}
             <span>{{ print.total_grams_used|floatformat:1 }}g</span>
+            {% endif %}
             {% if print.cost_estimate %}
             <span>${{ print.cost_estimate|floatformat:2 }}</span>
             {% endif %}
@@ -169,6 +215,16 @@
            class="mt-1.5 inline-block text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
             Calculate cost →
         </a>
+        {% if print.status == "confirmed" %}
+        <div class="mt-1.5">
+            <button type="button"
+                    onclick="document.getElementById('fail-form-mobile-{{ print.pk }}').classList.toggle('hidden')"
+                    class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                Failed Print
+            </button>
+        </div>
+        {% include "tracker/partials/failed_print_form.html" with mobile=True %}
+        {% endif %}
     </div>
     {% endfor %}
 </div>

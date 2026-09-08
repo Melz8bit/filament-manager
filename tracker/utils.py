@@ -69,3 +69,20 @@ def hex_distance(hex1, hex2) -> float:
 
 def rank_spools_by_color(slicer_hex, spools):
     return sorted(spools, key=lambda s: hex_distance(slicer_hex, s.color_hex))
+
+
+def rank_spools_by_material_and_color(slicer_hex, slicer_material, spools):
+    """Prefer spools matching the slicer's filament type (e.g. don't default a plain
+    PLA print to a Black HT-PLA spool just because it's closer alphabetically); fall
+    back to plain PLA, then to any material, ranking by color distance within
+    whichever group is used."""
+    spools = list(spools)
+    if slicer_material:
+        material_matches = [s for s in spools if s.material.strip().lower() == slicer_material.strip().lower()]
+        if material_matches:
+            spools = material_matches
+        else:
+            pla_matches = [s for s in spools if s.material.strip().lower() == "pla"]
+            if pla_matches:
+                spools = pla_matches
+    return rank_spools_by_color(slicer_hex, spools) if slicer_hex else spools
