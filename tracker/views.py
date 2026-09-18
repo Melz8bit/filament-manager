@@ -245,6 +245,27 @@ def _is_mobile_request(request):
     return bool(re.search(r"Mobi", request.META.get("HTTP_USER_AGENT", "")))
 
 
+def _build_slot_dict(ps, all_spools, preferred_spool_id=None):
+    """Build the template context for one spool-assignment row, including whether the
+    selected spool has enough remaining_g to cover the slot — used to flag it in the UI
+    up front rather than relying on client-side JS alone."""
+    if preferred_spool_id:
+        best_pk = preferred_spool_id
+    else:
+        ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
+        best_pk = ranked[0].pk if ranked else None
+    best_spool = next((s for s in all_spools if s.pk == best_pk), None)
+    insufficient = bool(best_spool) and float(best_spool.remaining_g) < float(ps.grams_used)
+    return {
+        "print_spool": ps,
+        "spools": all_spools,
+        "best_pk": best_pk,
+        "insufficient": insufficient,
+        "best_remaining": best_spool.remaining_g if best_spool else None,
+        "shortfall": (float(ps.grams_used) - float(best_spool.remaining_g)) if insufficient else 0,
+    }
+
+
 @login_required
 @require_POST
 def toggle_theme(request):
@@ -779,11 +800,7 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
     def get(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
         all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
-        slots = []
-        for ps in print_log.spools_used.all():
-            ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
-            best_pk = ranked[0].pk if ranked else None
-            slots.append({"print_spool": ps, "spools": all_spools, "best_pk": best_pk})
+        slots = [_build_slot_dict(ps, all_spools) for ps in print_log.spools_used.all()]
         return render(request, "tracker/spool_assignment.html", {
             "print_log": print_log,
             "slots": slots,
@@ -791,18 +808,58 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
-        with transaction.atomic():
-            for ps in list(print_log.spools_used.all()):
-                spool_id = request.POST.get(f"spool_{ps.pk}")
-                cont_spool_id = request.POST.get(f"continuation_spool_{ps.pk}")
-                if not spool_id:
+        all_spools_used = list(print_log.spools_used.all())
+
+        # Validate every requested deduction up front — nothing gets saved unless every
+        # slot's chosen spool(s) can actually cover it, so a spool's remaining_g can
+        # never be driven negative (or silently floored to 0, hiding the shortfall).
+        errors = []
+        plan = []  # (ps, spool, primary_grams, cont_spool_or_None, cont_grams)
+        for ps in all_spools_used:
+            spool_id = request.POST.get(f"spool_{ps.pk}")
+            cont_spool_id = request.POST.get(f"continuation_spool_{ps.pk}")
+            if not spool_id:
+                continue
+            spool = get_object_or_404(Spool, pk=spool_id)
+            needed = float(ps.grams_used)
+            if cont_spool_id:
+                cont_spool = get_object_or_404(Spool, pk=cont_spool_id)
+                primary_grams = min(float(spool.remaining_g), needed)
+                cont_grams = needed - primary_grams
+                if cont_grams > float(cont_spool.remaining_g) + 1e-6:
+                    errors.append(
+                        f'"{ps.slicer_hex}" needs {needed:.1f}g but the selected spools only '
+                        f'have {spool.remaining_g:.1f}g + {cont_spool.remaining_g:.1f}g = '
+                        f'{spool.remaining_g + cont_spool.remaining_g:.1f}g available.'
+                    )
                     continue
-                spool = get_object_or_404(Spool, pk=spool_id)
-                if cont_spool_id:
-                    # Primary spool runs out; remainder comes from continuation spool
-                    cont_spool = get_object_or_404(Spool, pk=cont_spool_id)
-                    primary_grams = float(spool.remaining_g)
-                    cont_grams = max(0, float(ps.grams_used) - primary_grams)
+                plan.append((ps, spool, primary_grams, cont_spool, cont_grams))
+            else:
+                if needed > float(spool.remaining_g) + 1e-6:
+                    errors.append(
+                        f'"{ps.slicer_hex}" needs {needed:.1f}g but {spool.brand} — {spool.color_name} '
+                        f'only has {spool.remaining_g:.1f}g left. Use Split to add a replacement spool.'
+                    )
+                    continue
+                plan.append((ps, spool, needed, None, 0))
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
+            slots = []
+            for ps in all_spools_used:
+                posted_id = request.POST.get(f"spool_{ps.pk}")
+                preferred = int(posted_id) if posted_id else None
+                slots.append(_build_slot_dict(ps, all_spools, preferred_spool_id=preferred))
+            return render(request, "tracker/spool_assignment.html", {
+                "print_log": print_log,
+                "slots": slots,
+            }, status=400)
+
+        with transaction.atomic():
+            for ps, spool, primary_grams, cont_spool, cont_grams in plan:
+                if cont_spool:
                     ps.spool = spool
                     ps.grams_used = primary_grams
                     ps.save()
@@ -813,12 +870,12 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
                         slicer_hex=ps.slicer_hex,
                         slicer_material=ps.slicer_material,
                     )
-                    spool.remaining_g = 0
+                    spool.remaining_g = spool.remaining_g - primary_grams
                     spool.save()
-                    cont_spool.remaining_g = max(0, cont_spool.remaining_g - cont_grams)
+                    cont_spool.remaining_g = cont_spool.remaining_g - cont_grams
                     cont_spool.save()
                 else:
-                    spool.remaining_g = max(0, spool.remaining_g - float(ps.grams_used))
+                    spool.remaining_g = spool.remaining_g - primary_grams
                     spool.save()
                     ps.spool = spool
                     ps.save()
@@ -1101,10 +1158,8 @@ class SpoolSlotRowView(LoginRequiredMixin, View):
     def get(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)
         all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
-        ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
-        best_pk = ranked[0].pk if ranked else None
         return render(request, "tracker/partials/spool_slot_row.html", {
-            "slot": {"print_spool": ps, "spools": all_spools, "best_pk": best_pk},
+            "slot": _build_slot_dict(ps, all_spools),
         })
 
 
@@ -1112,12 +1167,7 @@ class SplitSpoolSlotView(LoginRequiredMixin, View):
     """GET: inline split form. POST: validate, delete original, create sub-slots."""
     def _build_slot(self, ps, all_spools):
         # If a spool was pre-assigned during split, keep it selected
-        if ps.spool_id:
-            best_pk = ps.spool_id
-        else:
-            ranked = rank_spools_by_material_and_color(ps.slicer_hex, ps.slicer_material, all_spools)
-            best_pk = ranked[0].pk if ranked else None
-        return {"print_spool": ps, "spools": all_spools, "best_pk": best_pk}
+        return _build_slot_dict(ps, all_spools, preferred_spool_id=ps.spool_id)
 
     def get(self, request, pk):
         ps = get_object_or_404(PrintSpool, pk=pk)

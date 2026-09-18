@@ -228,3 +228,106 @@ class SpoolAssignmentDefaultSelectionTests(TestCase):
         self.assertNotEqual(pla_option_idx, -1)
         self.assertNotEqual(ht_pla_option_idx, -1)
         self.assertTrue(0 < selected_idx - pla_option_idx < 200)
+
+
+class SpoolAssignmentInsufficientFilamentTests(TestCase):
+    """A spool assignment must never drive a spool's remaining_g negative — confirming
+    that requires either rejecting the submission or routing the shortfall through a
+    continuation spool. Covers both the server-side guard and the up-front warning."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester3", password="pw")
+        self.client.force_login(self.user)
+
+        self.low_black = _make_spool(brand="SUNLU", material="PLA", color_name="Black", color_hex="#000000", remaining_g=26)
+        self.backup_black = _make_spool(brand="Generic", material="PLA", color_name="Black", color_hex="#010101", remaining_g=500)
+
+        self.print_log = PrintLog.objects.create(
+            name="Insufficient filament test",
+            printed_at=timezone.now(),
+            source="gcode",
+            status="pending_assignment",
+        )
+        self.ps = PrintSpool.objects.create(
+            print_log=self.print_log,
+            grams_used=71.2,
+            slicer_hex="#000000",
+            slicer_material="PLA",
+        )
+
+    def test_assignment_page_flags_insufficient_default_selection(self):
+        response = self.client.get(reverse("spool-assignment", args=[self.print_log.pk]))
+        html = response.content.decode()
+        # Both the badge and the JS helper's boilerplate text are always present in the
+        # DOM/script regardless of state (visibility is CSS-class-driven) — assert on
+        # the pk-scoped, data-driven markup instead so this can't pass by accident.
+        self.assertIn(f'id="cont-{self.ps.pk}" class="mt-3 rounded-md', html)
+        self.assertIn(f'id="insufficient-badge-{self.ps.pk}"\n                      class="inline-flex', html)
+        self.assertIn("26.0g left on this spool", html)
+
+    def test_sufficient_spool_is_not_flagged(self):
+        self.low_black.remaining_g = 200
+        self.low_black.save()
+        response = self.client.get(reverse("spool-assignment", args=[self.print_log.pk]))
+        html = response.content.decode()
+        self.assertIn(f'id="cont-{self.ps.pk}" class="hidden mt-3 rounded-md', html)
+        self.assertIn(f'id="insufficient-badge-{self.ps.pk}"\n                      class="hidden inline-flex', html)
+        self.assertIn(f'<span id="cont-warn-{self.ps.pk}"></span>', html)
+
+    def test_submitting_an_insufficient_spool_alone_is_rejected(self):
+        response = self.client.post(
+            reverse("spool-assignment", args=[self.print_log.pk]),
+            {f"spool_{self.ps.pk}": self.low_black.pk},
+        )
+        self.assertEqual(response.status_code, 400)
+
+        self.print_log.refresh_from_db()
+        self.low_black.refresh_from_db()
+        self.assertEqual(self.print_log.status, "pending_assignment")
+        self.assertEqual(self.low_black.remaining_g, 26)  # untouched, not floored to 0
+
+    def test_submitting_with_an_insufficient_continuation_spool_is_rejected(self):
+        tiny_backup = _make_spool(brand="Tiny", material="PLA", color_name="Black", color_hex="#020202", remaining_g=5)
+        response = self.client.post(
+            reverse("spool-assignment", args=[self.print_log.pk]),
+            {
+                f"spool_{self.ps.pk}": self.low_black.pk,
+                f"continuation_spool_{self.ps.pk}": tiny_backup.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+        self.print_log.refresh_from_db()
+        self.low_black.refresh_from_db()
+        tiny_backup.refresh_from_db()
+        self.assertEqual(self.print_log.status, "pending_assignment")
+        self.assertEqual(self.low_black.remaining_g, 26)
+        self.assertEqual(tiny_backup.remaining_g, 5)
+
+    def test_submitting_with_a_sufficient_continuation_spool_succeeds(self):
+        response = self.client.post(
+            reverse("spool-assignment", args=[self.print_log.pk]),
+            {
+                f"spool_{self.ps.pk}": self.low_black.pk,
+                f"continuation_spool_{self.ps.pk}": self.backup_black.pk,
+            },
+        )
+        self.assertRedirects(response, reverse("print-history"))
+
+        self.print_log.refresh_from_db()
+        self.low_black.refresh_from_db()
+        self.backup_black.refresh_from_db()
+        self.assertEqual(self.print_log.status, "confirmed")
+        self.assertEqual(self.low_black.remaining_g, 0)
+        self.assertAlmostEqual(self.backup_black.remaining_g, 500 - (71.2 - 26), delta=0.01)
+
+    def test_submitting_a_spool_with_exactly_enough_succeeds(self):
+        self.low_black.remaining_g = 71.2
+        self.low_black.save()
+        response = self.client.post(
+            reverse("spool-assignment", args=[self.print_log.pk]),
+            {f"spool_{self.ps.pk}": self.low_black.pk},
+        )
+        self.assertRedirects(response, reverse("print-history"))
+        self.low_black.refresh_from_db()
+        self.assertEqual(self.low_black.remaining_g, 0)

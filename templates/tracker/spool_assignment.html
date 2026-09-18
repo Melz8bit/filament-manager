@@ -17,7 +17,7 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-        <form method="post">
+        <form method="post" onsubmit="return validateAssignmentForm()">
             {% csrf_token %}
 
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -48,18 +48,57 @@ function checkSpoolCapacity(selectEl, gramsNeeded, pk) {
     var warnEl = document.getElementById('cont-warn-' + pk);
     var contSel = document.getElementById('cont-spool-' + pk);
     var gramsEl = document.getElementById('cont-grams-' + pk);
+    var badgeEl = document.getElementById('insufficient-badge-' + pk);
 
     if (opt && opt.value && remaining < gramsNeeded) {
         var shortfall = (gramsNeeded - remaining).toFixed(1);
         warnEl.textContent = remaining.toFixed(1) + 'g left on this spool — ' + shortfall + 'g will come from a replacement spool.';
         contDiv.classList.remove('hidden');
+        selectEl.classList.add('ring-2', 'ring-red-400', 'border-red-400');
+        if (badgeEl) badgeEl.classList.remove('hidden');
         if (contSel) contSel.value = '';
         if (gramsEl) gramsEl.classList.add('hidden');
     } else {
         contDiv.classList.add('hidden');
+        selectEl.classList.remove('ring-2', 'ring-red-400', 'border-red-400');
+        if (badgeEl) badgeEl.classList.add('hidden');
         if (contSel) contSel.value = '';
         if (gramsEl) gramsEl.classList.add('hidden');
     }
+}
+
+function validateAssignmentForm() {
+    var problems = [];
+    document.querySelectorAll('select[data-needed]').forEach(function (sel) {
+        sel.classList.remove('ring-2', 'ring-red-500');
+        var needed = parseFloat(sel.dataset.needed || '0');
+        var opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return; // unassigned slot — nothing to deduct, not this check's concern
+        var remaining = parseFloat(opt.dataset.remaining || '0');
+        if (remaining >= needed - 0.05) return;
+
+        var pk = sel.id.replace('spool_', '');
+        var contSel = document.getElementById('cont-spool-' + pk);
+        var contRemaining = 0;
+        if (contSel && contSel.value) {
+            var contOpt = contSel.options[contSel.selectedIndex];
+            contRemaining = contOpt ? parseFloat(contOpt.dataset.remaining || '0') : 0;
+        }
+        if (remaining + contRemaining < needed - 0.05) {
+            problems.push(sel);
+        }
+    });
+
+    if (problems.length) {
+        problems.forEach(function (sel) {
+            sel.classList.add('ring-2', 'ring-red-500');
+        });
+        problems[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        alert('Not enough filament selected for ' + problems.length + ' color' + (problems.length > 1 ? 's' : '') +
+              ' — pick a replacement spool below, or choose a spool with more remaining.');
+        return false;
+    }
+    return true;
 }
 
 function updateContGrams(pk, gramsNeeded) {
