@@ -1148,6 +1148,31 @@ class PrintFailedView(LoginRequiredMixin, View):
         return redirect("print-history")
 
 
+class PrintUnfailView(LoginRequiredMixin, View):
+    """Undo a mistaken 'Failed Print' — restores status to confirmed and reverses the
+    grams credited back to each spool. Exact inverse of PrintFailedView.post."""
+
+    def post(self, request, pk):
+        print_log = get_object_or_404(PrintLog, pk=pk, status="failed")
+
+        with transaction.atomic():
+            for ps in print_log.spools_used.all():
+                if ps.spool and ps.grams_returned:
+                    ps.spool.remaining_g = max(0.0, ps.spool.remaining_g - ps.grams_returned)
+                    ps.spool.save()
+                ps.grams_returned = 0
+                ps.save()
+
+            print_log.status = "confirmed"
+            print_log.failed_at_layer = None
+            print_log.failed_total_layers = None
+            print_log.failed_at_percent = None
+            print_log.save()
+
+        messages.success(request, f'"{print_log.name}" restored to confirmed. Credited filament removed from inventory again.')
+        return redirect("print-history")
+
+
 class SlotRowView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, "tracker/partials/slot_row.html")

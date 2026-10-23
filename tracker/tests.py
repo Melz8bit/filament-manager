@@ -189,6 +189,73 @@ class PrintFailedViewTests(TestCase):
         self.assertNotIn(f'action="{reverse("print-failed", args=[self.print_log.pk])}"', html)
 
 
+class PrintUnfailViewTests(TestCase):
+    """Undo Failed must be the exact inverse of marking a print failed — restores
+    status, zeroes grams_returned, and pulls the credited grams back out of inventory."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester4", password="pw")
+        self.client.force_login(self.user)
+
+        self.red_spool = _make_spool(color_name="Red", color_hex="#FF0000", remaining_g=200)
+        self.white_spool = _make_spool(color_name="White", color_hex="#FFFFFF", remaining_g=200)
+
+        self.print_log = PrintLog.objects.create(
+            name="Wrongly failed print",
+            printed_at=timezone.now(),
+            source="gcode",
+            status="confirmed",
+        )
+        self.red_ps = PrintSpool.objects.create(print_log=self.print_log, spool=self.red_spool, grams_used=50, slicer_hex="#FF0000", slicer_material="PLA")
+        self.white_ps = PrintSpool.objects.create(print_log=self.print_log, spool=self.white_spool, grams_used=30, slicer_hex="#FFFFFF", slicer_material="PLA")
+
+    def test_undo_restores_status_and_reverses_credit(self):
+        self.client.post(reverse("print-failed", args=[self.print_log.pk]), {"failed_percent": "50"})
+        self.red_spool.refresh_from_db()
+        self.white_spool.refresh_from_db()
+        red_after_fail = self.red_spool.remaining_g
+        white_after_fail = self.white_spool.remaining_g
+        # Sanity check the fail actually credited something before testing the undo.
+        self.assertGreater(red_after_fail, 200)
+        self.assertGreater(white_after_fail, 200)
+
+        response = self.client.post(reverse("print-unfail", args=[self.print_log.pk]))
+        self.assertRedirects(response, reverse("print-history"))
+
+        self.print_log.refresh_from_db()
+        self.assertEqual(self.print_log.status, "confirmed")
+        self.assertIsNone(self.print_log.failed_at_layer)
+        self.assertIsNone(self.print_log.failed_total_layers)
+        self.assertIsNone(self.print_log.failed_at_percent)
+
+        self.red_ps.refresh_from_db()
+        self.white_ps.refresh_from_db()
+        self.assertEqual(self.red_ps.grams_returned, 0)
+        self.assertEqual(self.white_ps.grams_returned, 0)
+
+        self.red_spool.refresh_from_db()
+        self.white_spool.refresh_from_db()
+        self.assertAlmostEqual(self.red_spool.remaining_g, 200, delta=0.01)
+        self.assertAlmostEqual(self.white_spool.remaining_g, 200, delta=0.01)
+
+    def test_undo_only_works_on_a_failed_print(self):
+        response = self.client.post(reverse("print-unfail", args=[self.print_log.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.print_log.refresh_from_db()
+        self.assertEqual(self.print_log.status, "confirmed")
+
+    def test_undo_button_appears_only_on_failed_prints(self):
+        response = self.client.get(reverse("print-history"))
+        html = response.content.decode()
+        self.assertNotIn(f'action="{reverse("print-unfail", args=[self.print_log.pk])}"', html)
+
+        self.client.post(reverse("print-failed", args=[self.print_log.pk]), {"failed_percent": "50"})
+        response = self.client.get(reverse("print-history"))
+        html = response.content.decode()
+        self.assertIn(f'action="{reverse("print-unfail", args=[self.print_log.pk])}"', html)
+        self.assertIn("Undo Failed", html)
+
+
 class SpoolAssignmentDefaultSelectionTests(TestCase):
     """Confirms the material-aware ranking actually reaches the rendered dropdown
     selection on the real spool-assignment page, not just the utility function."""

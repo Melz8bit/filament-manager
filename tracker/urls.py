@@ -35,6 +35,7 @@ urlpatterns = [
     path("account/password/", views.AccountPasswordChangeView.as_view(), name="password-change"),
     path("history/", views.PrintHistoryView.as_view(), name="print-history"),
     path("prints/<int:pk>/fail/", views.PrintFailedView.as_view(), name="print-failed"),
+    path("prints/<int:pk>/unfail/", views.PrintUnfailView.as_view(), name="print-unfail"),
     path("calculator/", views.calculator, name="calculator"),
     path("calculator/save/", views.PrintSaleCreateView.as_view(), name="sale-add"),
     path("sales-log/", views.SalesLogListView.as_view(), name="sales-log"),
