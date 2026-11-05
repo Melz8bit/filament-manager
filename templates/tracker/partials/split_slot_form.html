@@ -28,7 +28,7 @@
                 <option value="">— Select spool —</option>
                 {% for spool in all_spools %}
                 <option value="{{ spool.pk }}" data-hex="{{ spool.color_hex }}">
-                    {{ spool.brand }} — {{ spool.color_name }} ({{ spool.material }}) · {{ spool.remaining_g|floatformat:0 }}g left
+                    {{ spool.brand }} — {{ spool.color_name }} ({{ spool.material }}){% if spool.sku %} [{{ spool.sku }}]{% endif %} · {{ spool.remaining_g|floatformat:0 }}g left
                 </option>
                 {% endfor %}
             </select>

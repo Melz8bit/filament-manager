@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from urllib.parse import urlencode
@@ -238,7 +238,7 @@ def _fetch_makerworld_filaments(url):
 
 from .constants import LOW_STOCK_THRESHOLD_G, PRINT_NAME_MAX_LENGTH
 from .parsers import parse_3mf, parse_gcode, estimate_remaining_by_layer
-from .utils import parse_filament_product, is_filament_product, rank_spools_by_material_and_color
+from .utils import parse_filament_product, is_filament_product, rank_spools_by_material_and_color, generate_spool_label_png
 
 
 def _is_mobile_request(request):
@@ -683,6 +683,34 @@ class SkuLookupView(LoginRequiredMixin, View):
         except FilamentProduct.DoesNotExist:
             return render(request, "tracker/partials/sku_result.html", {"not_found": True, "sku": sku})
         return render(request, "tracker/partials/sku_result.html", {"product": product})
+
+
+class SpoolLabelView(LoginRequiredMixin, View):
+    """A single spool's printable label — QR code + SKU + identifying text, as a PNG."""
+    def get(self, request, pk):
+        spool = get_object_or_404(Spool, pk=pk)
+        if not spool.sku:
+            raise Http404("This spool has no SKU yet.")
+        png = generate_spool_label_png(spool)
+        response = HttpResponse(png, content_type="image/png")
+        if request.GET.get("download"):
+            response["Content-Disposition"] = f'attachment; filename="spool-{spool.pk}-{spool.sku}.png"'
+        return response
+
+
+class SpoolLabelsListView(LoginRequiredMixin, ListView):
+    """Every spool's label in one place, for printing/downloading in bulk."""
+    model = Spool
+    template_name = "tracker/spool_labels.html"
+    context_object_name = "spools"
+
+    def get_queryset(self):
+        return Spool.objects.order_by("brand", "color_name", "material")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["missing_sku"] = [s for s in ctx["spools"] if not s.sku]
+        return ctx
 
 
 class FilamentProductListView(LoginRequiredMixin, ListView):

@@ -10,12 +10,12 @@ from django.utils import timezone
 
 from .models import PrintLog, PrintSpool, Spool
 from .parsers import estimate_remaining_by_layer
-from .utils import rank_spools_by_material_and_color
+from .utils import rank_spools_by_material_and_color, generate_spool_label_png
 
 FIXTURE_3MF = "uploads/prints/000ratonelectrico.gcode.3mf"
 
 
-def _make_spool(brand="Test", material="PLA", color_name="Tan", color_hex="#E4BD68", remaining_g=1000):
+def _make_spool(brand="Test", material="PLA", color_name="Tan", color_hex="#E4BD68", remaining_g=1000, sku=""):
     return Spool.objects.create(
         brand=brand,
         material=material,
@@ -25,6 +25,7 @@ def _make_spool(brand="Test", material="PLA", color_name="Tan", color_hex="#E4BD
         remaining_g=remaining_g,
         price_paid=Decimal("20.00"),
         purchase_date=timezone.localdate(),
+        sku=sku,
     )
 
 
@@ -398,3 +399,61 @@ class SpoolAssignmentInsufficientFilamentTests(TestCase):
         self.assertRedirects(response, reverse("print-history"))
         self.low_black.refresh_from_db()
         self.assertEqual(self.low_black.remaining_g, 0)
+
+
+class SpoolLabelTests(TestCase):
+    """Every spool should be able to get a unique, downloadable QR+SKU label — and the
+    spool-selection dropdowns should show the SKU so identical-looking spools can be
+    told apart."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester5", password="pw")
+        self.client.force_login(self.user)
+        self.labelled = _make_spool(brand="SUNLU", color_name="Black", sku="FT-ABC123")
+        self.unlabelled = _make_spool(brand="SUNLU", color_name="Red", sku="")
+
+    def test_generate_spool_label_png_returns_valid_image(self):
+        png_bytes = generate_spool_label_png(self.labelled)
+        self.assertTrue(png_bytes.startswith(b"\x89PNG"))
+
+    def test_label_view_returns_png_for_labelled_spool(self):
+        response = self.client.get(reverse("spool-label", args=[self.labelled.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/png")
+
+    def test_label_view_download_sets_content_disposition(self):
+        response = self.client.get(reverse("spool-label", args=[self.labelled.pk]) + "?download=1")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertIn(self.labelled.sku, response["Content-Disposition"])
+
+    def test_label_view_404s_for_spool_without_sku(self):
+        response = self.client.get(reverse("spool-label", args=[self.unlabelled.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_labels_list_page_flags_spools_missing_an_sku(self):
+        response = self.client.get(reverse("spool-labels"))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("still need", html)
+        self.assertIn(f'href="{reverse("spool-edit", args=[self.unlabelled.pk])}"', html)
+
+    def test_edit_form_shows_sku_section_and_saved_label(self):
+        """The SKU/Generate/Scan section used to be Add-only — confirm it now also
+        renders on Edit, including a download link for an already-saved SKU."""
+        response = self.client.get(reverse("spool-edit", args=[self.labelled.pk]))
+        html = response.content.decode()
+        self.assertIn("id_sku", html)
+        self.assertIn('id="gen-sku-btn"', html)
+        self.assertIn(reverse("spool-label", args=[self.labelled.pk]), html)
+
+    def test_spool_assignment_dropdown_shows_sku(self):
+        print_log = PrintLog.objects.create(
+            name="SKU dropdown test",
+            printed_at=timezone.now(),
+            source="gcode",
+            status="pending_assignment",
+        )
+        PrintSpool.objects.create(print_log=print_log, grams_used=10, slicer_hex="#000000", slicer_material="PLA")
+        response = self.client.get(reverse("spool-assignment", args=[print_log.pk]))
+        html = response.content.decode()
+        self.assertIn(f"[{self.labelled.sku}]", html)

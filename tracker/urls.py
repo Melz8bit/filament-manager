@@ -19,6 +19,8 @@ urlpatterns = [
         name="spool-card",
     ),
     path("inventory/sku-lookup/", views.SkuLookupView.as_view(), name="sku-lookup"),
+    path("inventory/labels/", views.SpoolLabelsListView.as_view(), name="spool-labels"),
+    path("inventory/<int:pk>/label.png", views.SpoolLabelView.as_view(), name="spool-label"),
     path("inventory/products/", views.FilamentProductListView.as_view(), name="filament-product-list"),
     path("inventory/products/<int:pk>/edit/", views.FilamentProductUpdateView.as_view(), name="filament-product-edit"),
     path("inventory/products/<int:pk>/delete/", views.FilamentProductDeleteView.as_view(), name="filament-product-delete"),

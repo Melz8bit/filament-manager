@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Spool Labels — Filament Tracker{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'spool-list' %}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">← Inventory</a>
+    <h1 class="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Spool Labels</h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Every spool's QR + SKU label, ready to download and print. Tap "Download" on a spool,
+        then import the saved image into your label printer's app.
+    </p>
+</div>
+
+{% if missing_sku %}
+<div class="mb-6 rounded-lg bg-amber-50 border border-amber-200 p-4 dark:bg-amber-950 dark:border-amber-800">
+    <p class="text-sm font-medium text-amber-800 dark:text-amber-300">
+        {{ missing_sku|length }} spool{{ missing_sku|length|pluralize }} still need{{ missing_sku|length|pluralize:"s," }} an SKU before a label can be generated.
+    </p>
+    <ul class="mt-2 text-sm text-amber-700 dark:text-amber-400 space-y-1">
+        {% for spool in missing_sku %}
+        <li>
+            <a href="{% url 'spool-edit' spool.pk %}" class="underline hover:text-amber-900 dark:hover:text-amber-200">
+                {{ spool.brand }} {{ spool.color_name }} ({{ spool.material }})
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+    {% for spool in spools %}
+    {% if spool.sku %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex flex-col items-center text-center dark:bg-gray-800 dark:border-gray-700">
+        <img src="{% url 'spool-label' spool.pk %}" alt="Label for {{ spool.sku }}" class="w-full rounded border border-gray-100 dark:border-gray-700">
+        <p class="mt-2 text-xs font-medium text-gray-900 dark:text-gray-100">{{ spool.brand }} {{ spool.color_name }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ spool.material }} · {{ spool.remaining_g|floatformat:0 }}g left</p>
+        <a href="{% url 'spool-label' spool.pk %}?download=1"
+           class="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium dark:text-indigo-400 dark:hover:text-indigo-300">
+            Download
+        </a>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

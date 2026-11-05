@@ -1,4 +1,8 @@
 import re
+from io import BytesIO
+
+import qrcode
+from PIL import Image, ImageDraw, ImageFont
 
 # Ordered most-specific first so "Dark Grey" matches before "Grey"
 _MATERIALS = ["PLA-CF", "PETG-CF", "PA-CF", "PLA+", "PETG+", "PETG", "PLA",
@@ -86,3 +90,66 @@ def rank_spools_by_material_and_color(slicer_hex, slicer_material, spools):
             if pla_matches:
                 spools = pla_matches
     return rank_spools_by_color(slicer_hex, spools) if slicer_hex else spools
+
+
+_LABEL_WIDTH = 500
+_LABEL_MARGIN = 24
+
+
+def _wrap_text(draw, text, font, max_width):
+    words = text.split()
+    lines, current = [], ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textlength(candidate, font=font) <= max_width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def generate_spool_label_png(spool):
+    """Render a single downloadable label (QR code + SKU + identifying text) for one
+    physical spool, sized for a small Bluetooth label printer or home printer."""
+    qr_img = qrcode.make(spool.sku, box_size=10, border=2).convert("RGB")
+    qr_size = _LABEL_WIDTH - 2 * _LABEL_MARGIN
+    qr_img = qr_img.resize((qr_size, qr_size), Image.NEAREST)
+
+    sku_font = ImageFont.load_default(size=34)
+    detail_font = ImageFont.load_default(size=22)
+
+    scratch = Image.new("RGB", (10, 10), "white")
+    scratch_draw = ImageDraw.Draw(scratch)
+    max_text_width = _LABEL_WIDTH - 2 * _LABEL_MARGIN
+
+    sku_lines = _wrap_text(scratch_draw, spool.sku, sku_font, max_text_width)
+    detail_text = f"{spool.brand} {spool.color_name} ({spool.material})".strip()
+    detail_lines = _wrap_text(scratch_draw, detail_text, detail_font, max_text_width)
+
+    line_gap = 6
+    sku_line_h = sku_font.size + 8
+    detail_line_h = detail_font.size + 6
+    text_block_h = (len(sku_lines) * sku_line_h) + line_gap + (len(detail_lines) * detail_line_h)
+
+    total_h = _LABEL_MARGIN + qr_size + 18 + text_block_h + _LABEL_MARGIN
+    label = Image.new("RGB", (_LABEL_WIDTH, int(total_h)), "white")
+    label.paste(qr_img, (_LABEL_MARGIN, _LABEL_MARGIN))
+
+    draw = ImageDraw.Draw(label)
+    y = _LABEL_MARGIN + qr_size + 18
+    for line in sku_lines:
+        w = draw.textlength(line, font=sku_font)
+        draw.text(((_LABEL_WIDTH - w) / 2, y), line, font=sku_font, fill="black")
+        y += sku_line_h
+    y += line_gap
+    for line in detail_lines:
+        w = draw.textlength(line, font=detail_font)
+        draw.text(((_LABEL_WIDTH - w) / 2, y), line, font=detail_font, fill="#444444")
+        y += detail_line_h
+
+    buf = BytesIO()
+    label.save(buf, format="PNG")
+    return buf.getvalue()
