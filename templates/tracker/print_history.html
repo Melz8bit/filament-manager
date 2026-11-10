@@ -89,6 +89,10 @@
                             <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
                                 Failed
                             </span>
+                            {% elif print.status == "cancelled" %}
+                            <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                                Cancelled
+                            </span>
                             {% endif %}
                         </div>
                         {% if print.status == "failed" %}
@@ -123,7 +127,7 @@
                         </div>
                     </td>
                     <td class="px-5 py-3 text-sm text-gray-700 text-right whitespace-nowrap dark:text-gray-300">
-                        {% if print.status == "failed" %}
+                        {% if print.status == "failed" or print.status == "cancelled" %}
                         {{ print.grams_printed|floatformat:1 }}g <span class="text-gray-400 dark:text-gray-500">/ {{ print.total_grams_used|floatformat:1 }}g</span>
                         {% else %}
                         {{ print.total_grams_used|floatformat:1 }}g
@@ -137,25 +141,38 @@
                         {% endif %}
                     </td>
                     <td class="px-5 py-3 text-right whitespace-nowrap">
-                        <a href="{% url 'calculator' %}?item={{ print.name|urlencode }}&grams={{ print.total_grams_used|floatformat:1 }}&price={{ print.priciest_spool_rate|floatformat:2 }}"
-                           class="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
-                            Calculate cost
-                        </a>
-                        {% if print.status == "confirmed" %}
-                        <button type="button"
-                                onclick="document.getElementById('fail-row-{{ print.pk }}').classList.toggle('hidden')"
-                                class="ml-5 text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                            Failed Print
-                        </button>
-                        {% elif print.status == "failed" %}
-                        <form method="post" action="{% url 'print-unfail' print.pk %}" class="inline ml-5"
-                              onsubmit="return confirm('Restore this print to confirmed and remove the credited filament from inventory again?')">
-                            {% csrf_token %}
-                            <button type="submit" class="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300">
-                                Undo Failed
-                            </button>
-                        </form>
-                        {% endif %}
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'calculator' %}?item={{ print.name|urlencode }}&grams={{ print.total_grams_used|floatformat:1 }}&price={{ print.priciest_spool_rate|floatformat:2 }}"
+                               class="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+                                Calculate cost
+                            </a>
+                            <span class="h-4 w-px bg-gray-200 dark:bg-gray-700"></span>
+                            <div class="flex items-center gap-1.5">
+                                <form method="post" action="{% url 'print-duplicate' print.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                                        Duplicate
+                                    </button>
+                                </form>
+                                {% if print.status == "confirmed" %}
+                                <button type="button"
+                                        onclick="document.getElementById('fail-row-{{ print.pk }}').classList.toggle('hidden')"
+                                        class="inline-flex items-center rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors dark:bg-gray-800 dark:text-red-400 dark:border-red-900 dark:hover:bg-red-950">
+                                    Cancel / Fail
+                                </button>
+                                {% elif print.status == "failed" or print.status == "cancelled" %}
+                                <form method="post" action="{% url 'print-unfail' print.pk %}" class="inline"
+                                      onsubmit="return confirm('Restore this print to confirmed and remove the credited filament from inventory again?')">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                                        {% if print.status == "failed" %}Undo Failed{% else %}Undo Cancel{% endif %}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 {% if print.status == "confirmed" %}
@@ -181,6 +198,10 @@
             <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
                 Failed
             </span>
+            {% elif print.status == "cancelled" %}
+            <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                Cancelled
+            </span>
             {% endif %}
             <div class="flex flex-wrap gap-1">
                 {% for ps in print.spools_used.all %}
@@ -204,7 +225,7 @@
         {% endif %}
         <div class="mt-1.5 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ print.printed_at|date:"M j, Y" }}</span>
-            {% if print.status == "failed" %}
+            {% if print.status == "failed" or print.status == "cancelled" %}
             <span>{{ print.grams_printed|floatformat:1 }}g <span class="text-gray-400 dark:text-gray-500">/ {{ print.total_grams_used|floatformat:1 }}g</span></span>
             {% else %}
             <span>{{ print.total_grams_used|floatformat:1 }}g</span>
@@ -223,23 +244,33 @@
            class="mt-1.5 inline-block text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
             Calculate cost →
         </a>
-        {% if print.status == "confirmed" %}
-        <div class="mt-1.5">
+        <div class="mt-2 flex items-center gap-1.5">
+            <form method="post" action="{% url 'print-duplicate' print.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                    Duplicate
+                </button>
+            </form>
+            {% if print.status == "confirmed" %}
             <button type="button"
                     onclick="document.getElementById('fail-form-mobile-{{ print.pk }}').classList.toggle('hidden')"
-                    class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                Failed Print
+                    class="inline-flex items-center rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors dark:bg-gray-800 dark:text-red-400 dark:border-red-900 dark:hover:bg-red-950">
+                Cancel / Fail
             </button>
+            {% elif print.status == "failed" or print.status == "cancelled" %}
+            <form method="post" action="{% url 'print-unfail' print.pk %}" class="inline"
+                  onsubmit="return confirm('Restore this print to confirmed and remove the credited filament from inventory again?')">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                    {% if print.status == "failed" %}Undo Failed{% else %}Undo Cancel{% endif %}
+                </button>
+            </form>
+            {% endif %}
         </div>
+        {% if print.status == "confirmed" %}
         {% include "tracker/partials/failed_print_form.html" with mobile=True %}
-        {% elif print.status == "failed" %}
-        <form method="post" action="{% url 'print-unfail' print.pk %}" class="mt-1.5"
-              onsubmit="return confirm('Restore this print to confirmed and remove the credited filament from inventory again?')">
-            {% csrf_token %}
-            <button type="submit" class="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300">
-                Undo Failed
-            </button>
-        </form>
         {% endif %}
     </div>
     {% endfor %}

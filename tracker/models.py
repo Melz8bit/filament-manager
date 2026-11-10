@@ -82,6 +82,7 @@ class PrintLog(models.Model):
             ("pending_assignment", "Pending Assignment"),
             ("confirmed", "Confirmed"),
             ("failed", "Failed"),
+            ("cancelled", "Cancelled"),
         ],
         default="pending_assignment",
     )

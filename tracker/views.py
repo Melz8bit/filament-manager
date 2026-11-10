@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.core.files.base import ContentFile
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -828,7 +829,7 @@ class SpoolAssignmentView(LoginRequiredMixin, View):
     def get(self, request, pk):
         print_log = get_object_or_404(PrintLog, pk=pk)
         all_spools = list(Spool.objects.filter(remaining_g__gt=0).order_by("brand", "color_name", "material", "remaining_g"))
-        slots = [_build_slot_dict(ps, all_spools) for ps in print_log.spools_used.all()]
+        slots = [_build_slot_dict(ps, all_spools, preferred_spool_id=ps.spool_id) for ps in print_log.spools_used.all()]
         return render(request, "tracker/spool_assignment.html", {
             "print_log": print_log,
             "slots": slots,
@@ -1060,7 +1061,7 @@ class PrintHistoryView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = (
-            PrintLog.objects.filter(status__in=["confirmed", "failed"])
+            PrintLog.objects.filter(status__in=["confirmed", "failed", "cancelled"])
             .prefetch_related("spools_used__spool")
             .order_by("-printed_at")
         )
@@ -1176,12 +1177,40 @@ class PrintFailedView(LoginRequiredMixin, View):
         return redirect("print-history")
 
 
-class PrintUnfailView(LoginRequiredMixin, View):
-    """Undo a mistaken 'Failed Print' — restores status to confirmed and reverses the
-    grams credited back to each spool. Exact inverse of PrintFailedView.post."""
+class PrintCancelView(LoginRequiredMixin, View):
+    """One-click cancel for a print that was sent to the printer but never actually
+    started — unlike a partial Fail, the entire assigned amount of every spool is
+    credited back since nothing was extruded."""
 
     def post(self, request, pk):
-        print_log = get_object_or_404(PrintLog, pk=pk, status="failed")
+        print_log = get_object_or_404(PrintLog, pk=pk, status="confirmed")
+
+        with transaction.atomic():
+            for ps in print_log.spools_used.all():
+                remaining_grams = float(ps.grams_used)
+                ps.grams_returned = remaining_grams
+                ps.save()
+
+                if ps.spool:
+                    ps.spool.remaining_g = min(
+                        ps.spool.full_weight_g, ps.spool.remaining_g + remaining_grams
+                    )
+                    ps.spool.save()
+
+            print_log.status = "cancelled"
+            print_log.save()
+
+        messages.success(request, f'"{print_log.name}" cancelled. Filament returned to inventory.')
+        return redirect("print-history")
+
+
+class PrintUnfailView(LoginRequiredMixin, View):
+    """Undo a mistaken 'Failed Print' or 'Cancel Print' — restores status to confirmed
+    and reverses the grams credited back to each spool. Exact inverse of
+    PrintFailedView.post / PrintCancelView.post."""
+
+    def post(self, request, pk):
+        print_log = get_object_or_404(PrintLog, pk=pk, status__in=["failed", "cancelled"])
 
         with transaction.atomic():
             for ps in print_log.spools_used.all():
@@ -1199,6 +1228,58 @@ class PrintUnfailView(LoginRequiredMixin, View):
 
         messages.success(request, f'"{print_log.name}" restored to confirmed. Credited filament removed from inventory again.')
         return redirect("print-history")
+
+
+class PrintDuplicateView(LoginRequiredMixin, View):
+    """Re-print the same model: copies the source file and each slot's required
+    color/material/grams into a new pending_assignment print, pre-selecting the
+    same physical spool used last time (if it's still around) as the assignment
+    screen's default — the user can still change it before confirming."""
+
+    def post(self, request, pk):
+        original = get_object_or_404(PrintLog, pk=pk)
+
+        new_source_file = None
+        file_copy_failed = False
+        if original.source_file:
+            try:
+                original.source_file.open("rb")
+                try:
+                    data = original.source_file.read()
+                finally:
+                    original.source_file.close()
+            except OSError:
+                # The file isn't reachable from here (e.g. local dev pointed at a print
+                # that was only ever uploaded through the deployed site, which has its
+                # own separate uploads volume) — duplicate everything else anyway and
+                # just skip the file instead of failing the whole action.
+                file_copy_failed = True
+            else:
+                filename = original.source_file.name.rsplit("/", 1)[-1]
+                new_source_file = ContentFile(data, name=filename)
+
+        new_print_log = PrintLog.objects.create(
+            name=original.name,
+            printed_at=timezone.now(),
+            source=original.source,
+            source_file=new_source_file,
+            source_url=original.source_url,
+            status="pending_assignment",
+        )
+        for ps in original.spools_used.all():
+            PrintSpool.objects.create(
+                print_log=new_print_log,
+                grams_used=ps.grams_used,
+                slicer_hex=ps.slicer_hex,
+                slicer_material=ps.slicer_material,
+                spool=ps.spool,
+            )
+
+        if file_copy_failed:
+            messages.warning(request, f'"{original.name}" duplicated, but its source file couldn\'t be read — the new print has no gcode/3mf attached. Spool amounts were still copied.')
+        else:
+            messages.success(request, f'"{original.name}" duplicated — pick spools to confirm the new print.')
+        return redirect("spool-assignment", pk=new_print_log.pk)
 
 
 class SlotRowView(LoginRequiredMixin, View):

@@ -1,3 +1,4 @@
+import os
 import zipfile
 from decimal import Decimal
 from io import BytesIO
@@ -175,7 +176,7 @@ class PrintFailedViewTests(TestCase):
         response = self.client.get(reverse("print-history"))
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
-        self.assertIn("Failed Print", html)
+        self.assertIn("Cancel / Fail", html)
         self.assertIn(f'action="{reverse("print-failed", args=[self.print_log.pk])}"', html)
         self.assertIn('name="failed_layer"', html)
         self.assertIn('name="failed_percent"', html)
@@ -186,7 +187,7 @@ class PrintFailedViewTests(TestCase):
         html = response.content.decode()
         self.assertIn("Failed", html)
         self.assertIn("Layer 50 of 405", html)
-        # A failed print shouldn't still offer another "Failed Print" button.
+        # A failed print shouldn't still offer the Cancel/Fail button.
         self.assertNotIn(f'action="{reverse("print-failed", args=[self.print_log.pk])}"', html)
 
 
@@ -457,3 +458,156 @@ class SpoolLabelTests(TestCase):
         response = self.client.get(reverse("spool-assignment", args=[print_log.pk]))
         html = response.content.decode()
         self.assertIn(f"[{self.labelled.sku}]", html)
+
+
+class PrintCancelViewTests(TestCase):
+    """Cancel is the 'nothing was ever printed' case — unlike a partial Fail, every
+    assigned spool gets its full amount credited back. It should be reversible by the
+    same Undo Failed/Cancel flow."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester6", password="pw")
+        self.client.force_login(self.user)
+        self.spool = _make_spool(color_name="Black", remaining_g=150)  # 50g already deducted at confirm
+        self.print_log = PrintLog.objects.create(
+            name="Cancel test",
+            printed_at=timezone.now(),
+            source="gcode",
+            status="confirmed",
+        )
+        self.ps = PrintSpool.objects.create(
+            print_log=self.print_log, spool=self.spool, grams_used=50,
+            slicer_hex="#000000", slicer_material="PLA",
+        )
+
+    def test_cancel_credits_full_amount_back_and_sets_cancelled(self):
+        response = self.client.post(reverse("print-cancel", args=[self.print_log.pk]))
+        self.assertRedirects(response, reverse("print-history"))
+
+        self.print_log.refresh_from_db()
+        self.assertEqual(self.print_log.status, "cancelled")
+
+        self.ps.refresh_from_db()
+        self.assertEqual(self.ps.grams_returned, 50)
+
+        self.spool.refresh_from_db()
+        self.assertEqual(self.spool.remaining_g, 200)
+
+    def test_cancel_only_works_on_confirmed_print(self):
+        self.print_log.status = "failed"
+        self.print_log.save()
+        response = self.client.post(reverse("print-cancel", args=[self.print_log.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_undo_restores_a_cancelled_print_too(self):
+        self.client.post(reverse("print-cancel", args=[self.print_log.pk]))
+        response = self.client.post(reverse("print-unfail", args=[self.print_log.pk]))
+        self.assertRedirects(response, reverse("print-history"))
+
+        self.print_log.refresh_from_db()
+        self.assertEqual(self.print_log.status, "confirmed")
+        self.ps.refresh_from_db()
+        self.assertEqual(self.ps.grams_returned, 0)
+        self.spool.refresh_from_db()
+        self.assertEqual(self.spool.remaining_g, 150)
+
+    def test_print_history_shows_cancelled_badge_and_undo_cancel(self):
+        self.client.post(reverse("print-cancel", args=[self.print_log.pk]))
+        response = self.client.get(reverse("print-history"))
+        html = response.content.decode()
+        self.assertIn("Cancelled", html)
+        self.assertIn("Undo Cancel", html)
+        self.assertIn(f'action="{reverse("print-unfail", args=[self.print_log.pk])}"', html)
+
+    def test_cancel_fail_button_present_on_confirmed_print(self):
+        response = self.client.get(reverse("print-history"))
+        html = response.content.decode()
+        self.assertIn(f'action="{reverse("print-cancel", args=[self.print_log.pk])}"', html)
+        self.assertIn("Cancel / Fail", html)
+
+
+class PrintDuplicateViewTests(TestCase):
+    """Duplicate should copy the source file and each slot's color/material/grams into
+    a fresh pending_assignment print, pre-selecting the previously-used spool as the
+    assignment screen's default, without touching the original print or any inventory."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester7", password="pw")
+        self.client.force_login(self.user)
+        self.spool = _make_spool(color_name="Black", remaining_g=200)
+        self.print_log = PrintLog.objects.create(
+            name="Original print",
+            printed_at=timezone.now(),
+            source="gcode",
+            source_file=SimpleUploadedFile("test.gcode", b"; fake gcode content"),
+            status="confirmed",
+        )
+        self.ps = PrintSpool.objects.create(
+            print_log=self.print_log, spool=self.spool, grams_used=42.5,
+            slicer_hex="#000000", slicer_material="PLA",
+        )
+
+    def _get_duplicate(self):
+        return PrintLog.objects.exclude(pk=self.print_log.pk).latest("pk")
+
+    def test_duplicate_creates_new_pending_print_with_copied_slots(self):
+        response = self.client.post(reverse("print-duplicate", args=[self.print_log.pk]))
+
+        new_print = self._get_duplicate()
+        self.assertRedirects(response, reverse("spool-assignment", args=[new_print.pk]))
+
+        self.assertEqual(new_print.name, "Original print")
+        self.assertEqual(new_print.status, "pending_assignment")
+        self.assertEqual(new_print.source, "gcode")
+        self.assertTrue(new_print.source_file)
+        self.assertNotEqual(new_print.source_file.name, self.print_log.source_file.name)
+
+        new_slots = list(new_print.spools_used.all())
+        self.assertEqual(len(new_slots), 1)
+        new_ps = new_slots[0]
+        self.assertEqual(new_ps.grams_used, 42.5)
+        self.assertEqual(new_ps.slicer_hex, "#000000")
+        self.assertEqual(new_ps.slicer_material, "PLA")
+        self.assertEqual(new_ps.spool_id, self.spool.pk)
+
+        self.print_log.refresh_from_db()
+        self.assertEqual(self.print_log.status, "confirmed")
+
+    def test_duplicate_does_not_affect_original_spool_or_grams(self):
+        self.client.post(reverse("print-duplicate", args=[self.print_log.pk]))
+        self.spool.refresh_from_db()
+        self.assertEqual(self.spool.remaining_g, 200)
+
+    def test_duplicate_preselects_previously_used_spool_on_assignment_screen(self):
+        self.client.post(reverse("print-duplicate", args=[self.print_log.pk]))
+        new_print = self._get_duplicate()
+        html = self.client.get(reverse("spool-assignment", args=[new_print.pk])).content.decode()
+
+        option_idx = html.find(f'value="{self.spool.pk}"')
+        self.assertNotEqual(option_idx, -1)
+        selected_idx = html.find("selected", option_idx)
+        self.assertTrue(0 < selected_idx - option_idx < 200)
+
+    def test_duplicate_button_present_in_history(self):
+        response = self.client.get(reverse("print-history"))
+        html = response.content.decode()
+        self.assertIn(f'action="{reverse("print-duplicate", args=[self.print_log.pk])}"', html)
+
+    def test_duplicate_succeeds_even_if_source_file_is_missing_from_disk(self):
+        """Regression: a print whose source_file is reachable in the DB but missing on
+        this machine (e.g. local dev pointed at a print only ever uploaded through the
+        deployed site, which has its own separate uploads volume) used to crash
+        Duplicate with an unhandled FileNotFoundError. It should degrade gracefully —
+        duplicate everything else, just skip the file."""
+        os.remove(self.print_log.source_file.path)
+        try:
+            response = self.client.post(reverse("print-duplicate", args=[self.print_log.pk]))
+            new_print = self._get_duplicate()
+            self.assertRedirects(response, reverse("spool-assignment", args=[new_print.pk]))
+            self.assertFalse(new_print.source_file)
+            self.assertEqual(new_print.spools_used.count(), 1)
+        finally:
+            try:
+                new_print.source_file.delete(save=False)
+            except Exception:
+                pass
