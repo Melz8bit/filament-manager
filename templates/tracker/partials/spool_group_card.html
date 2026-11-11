@@ -43,6 +43,15 @@
                class="flex-1 py-2 text-center text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">
                 Edit
             </a>
+            {% if spool.remaining_g > 0 %}
+            <button hx-post="{% url 'spool-mark-empty' spool.pk %}"
+                    hx-target="#spool-{{ spool.pk }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="Mark this spool as empty (0g remaining)? The roll stays in your inventory — you can edit the weight back up later if needed."
+                    class="flex-1 py-2 text-xs text-amber-500 hover:bg-amber-50 hover:text-amber-700 transition-colors dark:text-amber-400 dark:hover:bg-amber-950 dark:hover:text-amber-400">
+                Mark Empty
+            </button>
+            {% endif %}
             <button hx-get="{% url 'spool-delete' spool.pk %}"
                     hx-target="#spool-{{ spool.pk }}"
                     hx-swap="outerHTML"

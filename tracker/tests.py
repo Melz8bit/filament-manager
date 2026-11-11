@@ -611,3 +611,47 @@ class PrintDuplicateViewTests(TestCase):
                 new_print.source_file.delete(save=False)
             except Exception:
                 pass
+
+
+class SpoolMarkEmptyViewTests(TestCase):
+    """Mark Empty zeroes out remaining_g without deleting the spool — the roll's
+    purchase history, SKU and cost data should all still be there afterward."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester9", password="pw")
+        self.client.force_login(self.user)
+        self.spool = _make_spool(brand="SUNLU", color_name="Black", remaining_g=250, sku="FT-TEST01")
+
+    def test_mark_empty_zeroes_remaining_g_but_keeps_the_spool(self):
+        response = self.client.post(reverse("spool-mark-empty", args=[self.spool.pk]), HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 200)
+
+        self.spool.refresh_from_db()
+        self.assertEqual(self.spool.remaining_g, 0)
+        self.assertEqual(self.spool.sku, "FT-TEST01")
+        self.assertEqual(self.spool.brand, "SUNLU")
+        self.assertTrue(Spool.objects.filter(pk=self.spool.pk).exists())
+
+    def test_mark_empty_response_is_the_updated_card(self):
+        response = self.client.post(reverse("spool-mark-empty", args=[self.spool.pk]), HTTP_HX_REQUEST="true")
+        html = response.content.decode()
+        self.assertIn("0g left", html)
+
+    def test_mark_empty_without_htmx_redirects_to_inventory(self):
+        response = self.client.post(reverse("spool-mark-empty", args=[self.spool.pk]))
+        self.assertRedirects(response, reverse("spool-list"))
+        self.spool.refresh_from_db()
+        self.assertEqual(self.spool.remaining_g, 0)
+
+    def test_mark_empty_button_hidden_once_already_empty(self):
+        self.spool.remaining_g = 0
+        self.spool.save()
+        response = self.client.get(reverse("spool-list"))
+        html = response.content.decode()
+        self.assertNotIn(f'action="{reverse("spool-mark-empty", args=[self.spool.pk])}"', html)
+        self.assertNotIn(f'hx-post="{reverse("spool-mark-empty", args=[self.spool.pk])}"', html)
+
+    def test_mark_empty_button_present_while_spool_has_filament(self):
+        response = self.client.get(reverse("spool-list"))
+        html = response.content.decode()
+        self.assertIn(f'hx-post="{reverse("spool-mark-empty", args=[self.spool.pk])}"', html)

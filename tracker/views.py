@@ -660,6 +660,20 @@ class SpoolCardView(LoginRequiredMixin, View):
         return render(request, "tracker/partials/spool_card.html", {"spool": spool})
 
 
+class SpoolMarkEmptyView(LoginRequiredMixin, View):
+    """Zero out a spool's remaining_g without deleting it — keeps the roll's purchase
+    history, SKU/label and cost data around for reference, just flags it as used up."""
+
+    def post(self, request, pk):
+        spool = get_object_or_404(Spool, pk=pk)
+        spool.remaining_g = 0
+        spool.save()
+        if request.htmx:
+            return render(request, "tracker/partials/spool_card.html", {"spool": spool})
+        messages.success(request, f"{spool} marked as empty.")
+        return redirect("spool-list")
+
+
 class SpoolDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
         spool = get_object_or_404(Spool, pk=pk)

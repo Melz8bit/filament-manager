@@ -18,6 +18,11 @@ urlpatterns = [
         views.SpoolCardView.as_view(),
         name="spool-card",
     ),
+    path(
+        "inventory/<int:pk>/mark-empty/",
+        views.SpoolMarkEmptyView.as_view(),
+        name="spool-mark-empty",
+    ),
     path("inventory/sku-lookup/", views.SkuLookupView.as_view(), name="sku-lookup"),
     path("inventory/labels/", views.SpoolLabelsListView.as_view(), name="spool-labels"),
     path("inventory/<int:pk>/label.png", views.SpoolLabelView.as_view(), name="spool-label"),
